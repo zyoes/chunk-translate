@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI文档翻译平台</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background: #f5f7fb;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ================= Header ================= */
+
+        .header {
+            height: 64px;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1677ff;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            border: none;
+            cursor: pointer;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #1677ff;
+            color: white;
+        }
+
+        .btn-success {
+            background: #52c41a;
+            color: white;
+        }
+
+        .btn-default {
+            background: #f1f5f9;
+        }
+
+        /* ================= Upload ================= */
+
+        .upload-section {
+            padding: 16px;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .upload-box {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            height: 110px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background: #fafafa;
+        }
+
+        .upload-box:hover {
+            border-color: #1677ff;
+        }
+
+        .upload-title {
+            font-size: 18px;
+            color: #334155;
+        }
+
+        .upload-desc {
+            margin-top: 8px;
+            color: #64748b;
+        }
+
+        /* ================= Main ================= */
+
+        .main {
+            height: calc(100vh - 230px);
+            display: flex;
+        }
+
+        /* ================= Sidebar ================= */
+
+        .sidebar {
+            width: 280px;
+            background: #fff;
+            border-right: 1px solid #e5e7eb;
+            overflow: auto;
+        }
+
+        .sidebar-header {
+            padding: 18px;
+            font-weight: 700;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tree {
+            padding: 10px;
+        }
+
+        .tree-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 4px;
+        }
+
+        .tree-item:hover {
+            background: #f3f4f6;
+        }
+
+        .tree-item.active {
+            background: #e6f4ff;
+            color: #1677ff;
+        }
+
+        .progress-tag {
+            float: right;
+            color: #52c41a;
+        }
+
+        /* ================= Content ================= */
+
+        .content {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .panel {
+            flex: 1;
+            background: #fff;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+        }
+
+        .panel-header {
+            height: 52px;
+            display: flex;
+            align-items: center;
+            padding: 0 18px;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            line-height: 1.8;
+        }
+
+        .panel-body h2 {
+            margin-bottom: 15px;
+        }
+
+        /* ================= Right Config ================= */
+
+        .config {
+            width: 320px;
+            background: #fff;
+            border-left: 1px solid #e5e7eb;
+            overflow: auto;
+        }
+
+        .config-header {
+            padding: 18px;
+            font-weight: 700;
+            border-bottom: 1px solid #eee;
+        }
+
+        .form {
+            padding: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #475569;
+        }
+
+        select {
+            width: 100%;
+            height: 40px;
+            border: 1px solid #dbe2ea;
+            border-radius: 8px;
+            padding: 0 10px;
+        }
+
+        .chunk-box {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .chunk-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .success {
+            color: #52c41a;
+        }
+
+        .processing {
+            color: #1677ff;
+        }
+
+        .waiting {
+            color: #94a3b8;
+        }
+
+        /* ================= Footer ================= */
+
+        .footer {
+            height: 80px;
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+            padding: 15px 24px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-inner {
+            width: 68%;
+            height: 100%;
+            background: #1677ff;
+        }
+
+        .footer-text {
+            margin-top: 10px;
+            color: #64748b;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<!-- Header -->
+
+<div class="header">
+
+    ```
+    <div class="logo">
+        AI文档翻译平台
+    </div>
+
+    <div class="header-right">
+        <button class="btn btn-primary">开始翻译</button>
+        <button class="btn btn-success">导出DOCX</button>
+        <button class="btn btn-default">翻译历史</button>
+    </div>
+    ```
+
+</div>
+
+<!-- Upload -->
+
+<div class="upload-section">
+
+    ```
+    <div class="upload-box">
+        <div class="upload-title">
+            📄 拖拽上传文档或点击上传
+        </div>
+
+        <div class="upload-desc">
+            支持 PDF / DOCX / PPTX / TXT / Markdown
+        </div>
+    </div>
+    ```
+
+</div>
+
+<!-- Main -->
+
+<div class="main">
+
+    ```
+    <!-- Left -->
+    <div class="sidebar">
+
+        <div class="sidebar-header">
+            文档目录
+        </div>
+
+        <div class="tree">
+
+            <div class="tree-item active">
+                1. 项目背景
+                <span class="progress-tag">✓</span>
+            </div>
+
+            <div class="tree-item">
+                2. 系统架构
+                <span class="progress-tag">✓</span>
+            </div>
+
+            <div class="tree-item">
+                3. 功能设计
+                <span class="progress-tag">65%</span>
+            </div>
+
+            <div class="tree-item">
+                4. 数据库设计
+            </div>
+
+            <div class="tree-item">
+                5. 接口设计
+            </div>
+
+            <div class="tree-item">
+                6. 部署方案
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Center -->
+    <div class="content">
+
+        <div class="panel">
+
+            <div class="panel-header">
+                📖 原文内容
+            </div>
+
+            <div class="panel-body">
+
+                <h2>项目背景</h2>
+
+                <p>
+                    随着人工智能技术的快速发展，
+                    跨语言文档处理需求日益增长。
+                </p>
+
+                <br>
+
+                <p>
+                    本项目旨在设计并实现一个基于AI的文档翻译平台，
+                    支持超长文档自动分块处理、目录导航、
+                    实时翻译和结果导出。
+                </p>
+
+                <br>
+
+                <p>
+                    系统采用 Vue3 + Spring Boot 架构，
+                    并结合大语言模型实现高质量翻译能力。
+                </p>
+
+            </div>
+
+        </div>
+
+        <div class="panel">
+
+            <div class="panel-header">
+                🌍 翻译结果
+            </div>
+
+            <div class="panel-body">
+
+                <h2>Project Background</h2>
+
+                <p>
+                    With the rapid development of artificial intelligence,
+                    the demand for cross-language document processing is increasing.
+                </p>
+
+                <br>
+
+                <p>
+                    This project aims to design and implement
+                    an AI-powered document translation platform,
+                    supporting automatic chunking of large documents,
+                    navigation, real-time translation,
+                    and document export.
+                </p>
+
+                <br>
+
+                <p>
+                    The system adopts a Vue3 + Spring Boot architecture
+                    and integrates large language models
+                    to provide high-quality translation services.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Right -->
+    <div class="config">
+
+        <div class="config-header">
+            翻译配置
+        </div>
+
+        <div class="form">
+
+            <div class="form-group">
+                <label>源语言</label>
+                <select>
+                    <option>自动检测</option>
+                    <option>中文</option>
+                    <option>英文</option>
+                    <option>日文</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>目标语言</label>
+                <select>
+                    <option>英文</option>
+                    <option>中文</option>
+                    <option>日文</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>翻译风格</label>
+                <select>
+                    <option>标准翻译</option>
+                    <option>学术翻译</option>
+                    <option>商务翻译</option>
+                    <option>技术翻译</option>
+                </select>
+            </div>
+
+            <div class="chunk-box">
+
+                <strong>Chunk任务状态</strong>
+
+                <div style="margin-top:12px">
+
+                    <div class="chunk-item">
+                        <span>Chunk-01</span>
+                        <span class="success">已完成</span>
+                    </div>
+
+                    <div class="chunk-item">
+                        <span>Chunk-02</span>
+                        <span class="success">已完成</span>
+                    </div>
+
+                    <div class="chunk-item">
+                        <span>Chunk-03</span>
+                        <span class="processing">翻译中</span>
+                    </div>
+
+                    <div class="chunk-item">
+                        <span>Chunk-04</span>
+                        <span class="waiting">等待中</span>
+                    </div>
+
+                    <div class="chunk-item">
+                        <span>Chunk-05</span>
+                        <span class="waiting">等待中</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+    ```
+
+</div>
+
+<!-- Footer -->
+
+<div class="footer">
+
+    ```
+    <div>
+        翻译总进度：68%
+    </div>
+
+    <div class="progress-bar">
+        <div class="progress-inner"></div>
+    </div>
+
+    <div class="footer-text">
+        已完成 34 / 50 Chunk ｜ 当前任务：功能设计章节翻译中...
+    </div>
+    ```
+
+</div>
+
+</body>
+</html>
