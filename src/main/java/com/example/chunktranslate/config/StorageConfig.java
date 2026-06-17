@@ -17,6 +17,11 @@ public class StorageConfig {
     @PostConstruct
     public void init() {
         File dir = new File(basePath);
+        // 将相对路径转为绝对路径，避免 transferTo() 解析到 Tomcat 临时目录
+        if (!dir.isAbsolute()) {
+            dir = new File(System.getProperty("user.dir"), basePath);
+        }
+        basePath = dir.getAbsolutePath();
         if (!dir.exists()) {
             dir.mkdirs();
         }

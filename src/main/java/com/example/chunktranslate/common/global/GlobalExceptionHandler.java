@@ -9,9 +9,11 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.example.chunktranslate.controller")
 public class GlobalExceptionHandler {
 
     /**
@@ -39,6 +41,15 @@ public class GlobalExceptionHandler {
     public Result<?> handleMaxUploadSize(MaxUploadSizeExceededException e) {
         log.warn("文件上传超限: {}", e.getMessage());
         return Result.fail(ResultCode.FILE_SIZE_EXCEED);
+    }
+
+    /**
+     * 文件上传参数缺失（未选择文件或请求格式不是 multipart）
+     */
+    @ExceptionHandler({MultipartException.class, MissingServletRequestPartException.class})
+    public Result<?> handleMultipartException(Exception e) {
+        log.warn("文件上传参数错误: {}", e.getMessage());
+        return Result.fail(ResultCode.BAD_REQUEST.getCode(), "请上传文件，且请求格式必须为 multipart/form-data");
     }
 
     /**
