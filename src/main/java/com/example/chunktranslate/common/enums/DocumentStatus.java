@@ -16,4 +16,19 @@ public enum DocumentStatus {
         this.code = code;
         this.desc = desc;
     }
+
+    /**
+     * 根据状态码转换为枚举
+     *
+     * @param code 状态码
+     * @return 对应的枚举值，找不到时返回 UPLOADED
+     */
+    public static DocumentStatus fromCode(int code) {
+        for (DocumentStatus status : values()) {
+            if (status.code == code) {
+                return status;
+            }
+        }
+        return UPLOADED;
+    }
 }
