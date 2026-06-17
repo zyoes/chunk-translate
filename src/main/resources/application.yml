@@ -62,15 +62,6 @@ storage:
   local:
     base-path: ./uploads
 
-# ==================== AI 翻译配置 ====================
-ai:
-  api:
-    url: https://api.openai.com/v1/chat/completions
-    key: your-api-key-here
-    model: gpt-4o
-    max-tokens: 4096
-    temperature: 0.3
-
 # ==================== 翻译线程池配置 ====================
 translation:
   thread-pool:
@@ -96,3 +87,21 @@ springdoc:
     tags-sorter: alpha
     operations-sorter: method
   packages-to-scan: com.example.chunktranslate.controller
+
+# ==================== 阿里云机器翻译配置 ====================
+aliyun:
+  translation:
+    access-key-id: your-access-key-id
+    access-key-secret: your-access-key-secret
+    endpoint: mt.cn-hangzhou.aliyuncs.com
+    scene: general
+    format-type: text
+
+# ==================== DeepSeek AI 润色配置 ====================
+deepseek:
+  api:
+    url: https://api.deepseek.com/v1/chat/completions
+    key: your-deepseek-api-key
+    model: deepseek-chat
+    max-tokens: 4096
+    temperature: 0.3
