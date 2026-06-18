@@ -21,7 +21,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -60,6 +62,16 @@ public class TranslationTaskExecutor {
     @Qualifier("translationExecutor")
     private Executor translationExecutor;
 
+    /**
+     * 翻译任务取消标志映射表
+     * <p>
+     * key: documentId，value: 取消标志（AtomicBoolean 保证线程安全）。
+     * 调用 {@link #cancelTranslation(Long)} 后将 flag 置为 true，
+     * 各 chunk 翻译前检查此标志，若已取消则跳过执行。
+     * </p>
+     */
+    private final ConcurrentHashMap<Long, AtomicBoolean> cancelledTasks = new ConcurrentHashMap<>();
+
     /** DeepSeek 润色的最大文本长度（超过则跳过润色，直接用机翻译文） */
     private static final int MAX_POLISH_LENGTH = 8000;
 
@@ -83,6 +95,9 @@ public class TranslationTaskExecutor {
                             String sourceLang, String targetLang) {
         log.info("开始翻译任务: documentId={}, 总chunk数={}", documentId, chunks.size());
 
+        // 初始化取消标志（false = 未取消）
+        AtomicBoolean cancelled = cancelledTasks.computeIfAbsent(documentId, k -> new AtomicBoolean(false));
+
         // AtomicInteger：线程安全的计数器，多个线程同时 +1 不会丢数据
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
@@ -91,9 +106,20 @@ public class TranslationTaskExecutor {
         // 每个 chunk 通过 supplyAsync 提交到线程池，真正实现并发
         for (DocumentChunk chunk : chunks) {
             CompletableFuture.supplyAsync(
-                    () -> translateSingleChunk(chunk, sourceLang, targetLang),
+                    () -> {
+                        // 翻译前检查取消标志
+                        if (cancelled.get()) {
+                            log.info("任务已取消，跳过chunk: documentId={}, chunkId={}", documentId, chunk.getId());
+                            return null;  // null 表示已取消，不计入成功/失败
+                        }
+                        return translateSingleChunk(chunk, sourceLang, targetLang);
+                    },
                     translationExecutor
             ).thenAccept(success -> {
+                        if (success == null) {
+                            // 已取消的 chunk，不计数
+                            return;
+                        }
                         if (success) {
                             successCount.incrementAndGet();
                         } else {
@@ -103,9 +129,38 @@ public class TranslationTaskExecutor {
                         // 当所有 chunk 都处理完毕时，更新文档最终状态
                         if (successCount.get() + failCount.get() == total) {
                             updateDocumentStatus(documentId, failCount.get() == 0);
+                            cancelledTasks.remove(documentId);  // 清理标志
                         }
                     });
         }
+    }
+
+    /**
+     * 取消指定文档的翻译任务
+     * <p>
+     * 将取消标志置为 true，已提交但尚未执行的 chunk 将在开始前检查此标志并跳过。
+     * 正在执行中的 chunk 无法中断，会自然完成。
+     * </p>
+     *
+     * @param documentId 文档ID
+     */
+    public void cancelTranslation(Long documentId) {
+        AtomicBoolean cancelled = cancelledTasks.get(documentId);
+        if (cancelled != null) {
+            cancelled.set(true);
+            log.info("翻译任务已取消: documentId={}", documentId);
+        }
+    }
+
+    /**
+     * 检查指定文档的翻译任务是否已取消
+     *
+     * @param documentId 文档ID
+     * @return true=已取消，false=未取消或不存在
+     */
+    public boolean isCancelled(Long documentId) {
+        AtomicBoolean cancelled = cancelledTasks.get(documentId);
+        return cancelled != null && cancelled.get();
     }
 
     /**

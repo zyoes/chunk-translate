@@ -235,4 +235,31 @@ public class TranslationServiceImpl implements TranslationService {
 
         log.info("原文校对更新: chunkId={}, 新原文长度={}", chunkId, content.length());
     }
+
+    /**
+     * 中止指定文档的翻译任务
+     * <p>
+     * 通过 {@link TranslationTaskExecutor#cancelTranslation(Long)} 将取消标志置为 true，
+     * 尚未开始执行的 chunk 将被跳过，正在执行中的 chunk 无法立即中断。
+     * 同时将未完成的 chunk 状态回滚为待翻译，以便下次重新启动。
+     * </p>
+     */
+    @Override
+    public void stopTranslation(Long documentId) {
+        // 1. 通知执行器取消
+        translationTaskExecutor.cancelTranslation(documentId);
+
+        // 2. 将仍处于「翻译中」状态的 chunk 回滚为「待翻译」
+        List<DocumentChunk> translatingChunks = documentChunkMapper.selectList(
+                new LambdaQueryWrapper<DocumentChunk>()
+                        .eq(DocumentChunk::getDocumentId, documentId)
+                        .eq(DocumentChunk::getStatus, ChunkStatus.TRANSLATING.getCode())
+        );
+        for (DocumentChunk chunk : translatingChunks) {
+            chunk.setStatus(ChunkStatus.PENDING.getCode());
+            documentChunkMapper.updateById(chunk);
+        }
+
+        log.info("翻译任务已中止: documentId={}, 回滚chunk数={}", documentId, translatingChunks.size());
+    }
 }

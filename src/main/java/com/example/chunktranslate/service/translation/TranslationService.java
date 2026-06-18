@@ -66,4 +66,15 @@ public interface TranslationService {
      * @param content 修改后的原文
      */
     void updateChunkSource(Long chunkId, String content);
+
+    /**
+     * 中止指定文档的翻译任务
+     * <p>
+     * 将取消标志置为 true，尚未开始执行的 chunk 将被跳过，
+     * 正在执行中的 chunk 无法立即中断，会自然完成。
+     * </p>
+     *
+     * @param documentId 文档ID
+     */
+    void stopTranslation(Long documentId);
 }

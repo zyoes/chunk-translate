@@ -245,13 +245,13 @@ import { ref, computed, onBeforeUnmount } from 'vue'
 import { ElMessage, ElLoading } from 'element-plus'
 import { UploadFilled, VideoPlay, Download, Edit, Check, Close } from '@element-plus/icons-vue'
 import { uploadDocument, getDocumentDetail } from '../api/document'
-import { startTranslation, getProgress, exportFile } from '../api/translation'
+import { startTranslation, getProgress, exportFile, stopTranslation } from '../api/translation'
 import { updateChunkTranslation, updateChunkSource } from '../api/edit'
 
 // ==================== 状态 ====================
 const documentId = ref(null)
 const fileName = ref('')
-const sourceLang = ref('en')
+const sourceLang = ref('auto')
 const targetLang = ref('zh')
 const isTranslating = ref(false)
 const treeData = ref([])
@@ -285,11 +285,10 @@ const selectedChunk = computed(() => {
   const node = selectedNode.value
   if (!node) return null
 
-  // 通过 nodeId 匹配 chunk（nodeId 格式为 "chunk-{chunkId}"）
-  // 如果 nodeId 不可用，按 title 匹配
+  // 通过 nodeId 匹配 chunk（后端 nodeId 就是 chunkId 的字符串形式，如 "123"）
   let chunk = null
   if (node.nodeId) {
-    const chunkId = parseInt(node.nodeId.replace('chunk-', ''))
+    const chunkId = parseInt(node.nodeId)
     chunk = chunks.value.find(c => c.chunkId === chunkId)
   }
   if (!chunk) {
@@ -299,7 +298,8 @@ const selectedChunk = computed(() => {
   return {
     title: node.title,
     content: node.content || '',
-    chunkId: chunk?.chunkId || null,
+    // chunk 未找到时，直接用 nodeId 作为 chunkId（翻译前也能保存原文）
+    chunkId: chunk?.chunkId || (node.nodeId ? parseInt(node.nodeId) : null),
     translation: chunk?.translation || null,
     status: chunk?.status
   }
@@ -331,6 +331,13 @@ async function loadDocumentDetail(id) {
     const res = await getDocumentDetail(id)
     treeData.value = res.data.tree || []
     ElMessage.success('文档解析完成')
+    // 同时加载翻译进度（填充 chunks 数组，使 selectedChunk.chunkId 可用）
+    try {
+      const progressRes = await getProgress(id)
+      chunks.value = progressRes.data.chunks || []
+    } catch (e) {
+      // 进度查询失败不影响文档展示
+    }
     // 自动选中第一个节点，立即显示原文内容
     if (treeData.value.length > 0) {
       selectedNode.value = treeData.value[0]
@@ -357,11 +364,20 @@ async function handleStartTranslation() {
   }
 }
 
-// 中止翻译：停止轮询，重置状态
-function handleStopTranslation() {
-  stopPolling()
-  isTranslating.value = false
-  ElMessage.warning('已中止翻译轮询，后台任务仍在继续')
+// 中止翻译：调用后端停止接口 + 停止轮询
+async function handleStopTranslation() {
+  if (!documentId.value) return
+  try {
+    await stopTranslation(documentId.value)
+    stopPolling()
+    isTranslating.value = false
+    ElMessage.warning('翻译已中止，未完成分块已回滚为待翻译')
+    // 刷新进度，使回滚状态立刻显示
+    const res = await getProgress(documentId.value)
+    chunks.value = res.data.chunks || []
+  } catch (e) {
+    console.error('中止翻译失败', e)
+  }
 }
 
 function startPolling() {

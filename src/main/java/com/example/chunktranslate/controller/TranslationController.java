@@ -105,4 +105,22 @@ public class TranslationController {
         translationService.updateChunkSource(chunkId, content);
         return Result.success();
     }
+
+    /**
+     * 中止翻译任务
+     * <p>
+     * 通知后台停止尚未执行的 chunk 翻译，正在执行中的 chunk 无法立即中断。
+     * 未完成的 chunk 状态将回滚为「待翻译」。
+     * </p>
+     *
+     * @param documentId 文档ID
+     * @return 操作结果
+     */
+    @Operation(summary = "中止翻译任务", description = "停止指定文档的翻译任务，未完成 chunk 回滚为待翻译")
+    @PostMapping("/stop/{documentId}")
+    public Result<Void> stopTranslation(
+            @Parameter(description = "文档ID") @PathVariable Long documentId) {
+        translationService.stopTranslation(documentId);
+        return Result.success();
+    }
 }
