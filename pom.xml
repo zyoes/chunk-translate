@@ -140,7 +140,7 @@
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>tea-openapi</artifactId>
-            <version>0.3.14</version>
+            <version>0.3.10</version>
         </dependency>
 
         <!-- ==================== API 文档 ==================== -->

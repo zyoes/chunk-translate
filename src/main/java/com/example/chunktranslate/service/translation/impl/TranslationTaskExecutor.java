@@ -15,11 +15,13 @@ import com.example.chunktranslate.service.translation.ALimtTranslationClient;
 import com.example.chunktranslate.service.translation.DeepSeekPolishClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -29,9 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 充分利用线程池资源实现真正的并发执行。
  * </p>
  *
- * <p>独立为单独的 Bean，确保 {@code @Async} 通过 Spring AOP 代理生效。
- * 如果在 TranslationServiceImpl 内部直接调用 @Async 方法，
- * 由于 {@code this} 调用不走代理，异步会退化为同步。</p>
+ * <p>通过手动注入 {@code translationExecutor} 线程池，使用 {@link CompletableFuture#supplyAsync}
+ * 将每个 chunk 独立提交到线程池并发执行，彻底避免 {@code @Async} 自调用导致代理失效的问题。</p>
  *
  * <p>翻译流水线（每个 chunk）：</p>
  * <ol>
@@ -55,14 +56,21 @@ public class TranslationTaskExecutor {
     private final ALimtTranslationClient alimtClient;
     private final DeepSeekPolishClient deepSeekPolishClient;
 
+    @Autowired
+    @Qualifier("translationExecutor")
+    private Executor translationExecutor;
+
+    /** DeepSeek 润色的最大文本长度（超过则跳过润色，直接用机翻译文） */
+    private static final int MAX_POLISH_LENGTH = 8000;
+
     /** 每个 chunk 的最大重试次数 */
     private static final int MAX_RETRY = 3;
 
     /**
      * 并发翻译所有 chunk
      * <p>
-     * 每个 chunk 通过 {@link #translateSingleChunk} 独立异步执行，
-     * 线程池（translationExecutor）负责并发调度。
+     * 每个 chunk 通过 {@link CompletableFuture#supplyAsync} 提交到线程池并发执行，
+     * 彻底绕过 {@code @Async} 自调用代理失效问题。
      * 当所有 chunk 都处理完毕后，自动更新文档最终状态。
      * </p>
      *
@@ -80,10 +88,12 @@ public class TranslationTaskExecutor {
         AtomicInteger failCount = new AtomicInteger(0);
         int total = chunks.size();
 
-        // 每个 chunk 单独提交到线程池异步执行（真正实现并发）
+        // 每个 chunk 通过 supplyAsync 提交到线程池，真正实现并发
         for (DocumentChunk chunk : chunks) {
-            translateSingleChunk(chunk, sourceLang, targetLang)
-                    .thenAccept(success -> {
+            CompletableFuture.supplyAsync(
+                    () -> translateSingleChunk(chunk, sourceLang, targetLang),
+                    translationExecutor
+            ).thenAccept(success -> {
                         if (success) {
                             successCount.incrementAndGet();
                         } else {
@@ -99,20 +109,19 @@ public class TranslationTaskExecutor {
     }
 
     /**
-     * 异步翻译单个 chunk
+     * 翻译单个 chunk（在线程池中执行）
      * <p>
-     * 每个 chunk 独立在线程池中执行，实现真正的并发。
      * 翻译流程：alimt 机器翻译 → DeepSeek AI 润色 → 写入 translation_result → 更新 chunk 状态。
      * 失败时最多重试 {@value #MAX_RETRY} 次。
+     * 使用 {@code catch (Throwable)} 确保 {@link Error} 类型异常也能被正确处理。
      * </p>
      *
      * @param chunk      待翻译的分块
      * @param sourceLang 源语言代码
      * @param targetLang 目标语言代码
-     * @return CompletableFuture 包装的翻译结果（true=成功，false=失败）
+     * @return true=成功，false=失败
      */
-    @Async("translationExecutor")
-    public CompletableFuture<Boolean> translateSingleChunk(
+    public Boolean translateSingleChunk(
             DocumentChunk chunk, String sourceLang, String targetLang) {
         int retryCount = 0;
 
@@ -122,9 +131,23 @@ public class TranslationTaskExecutor {
                 String machineTranslation = alimtClient.translate(
                         chunk.getContent(), sourceLang, targetLang);
 
-                // 第二级：DeepSeek AI 润色（提升流畅度）
-                String polished = deepSeekPolishClient.polish(
-                        chunk.getContent(), machineTranslation, sourceLang, targetLang);
+                log.info("alimt翻译结果: chunkId={}, 原文长度={}, 译文长度={}, 译文前100字={}",
+                        chunk.getId(),
+                        chunk.getContent().length(),
+                        machineTranslation != null ? machineTranslation.length() : "null",
+                        machineTranslation != null && machineTranslation.length() > 100
+                                ? machineTranslation.substring(0, 100) : machineTranslation);
+
+                // 第二级：DeepSeek AI 润色（文本太长时跳过，直接用机翻译文）
+                String polished;
+                if (machineTranslation != null && machineTranslation.length() <= MAX_POLISH_LENGTH) {
+                    polished = deepSeekPolishClient.polish(
+                            chunk.getContent(), machineTranslation, sourceLang, targetLang);
+                } else {
+                    log.info("译文过长({}字符), 跳过AI润色, 直接使用机翻译文",
+                            machineTranslation != null ? machineTranslation.length() : 0);
+                    polished = machineTranslation;
+                }
 
                 // 写入翻译结果表（记录原文和译文，方便后续查看对照）
                 TranslationResult result = new TranslationResult();
@@ -143,13 +166,13 @@ public class TranslationTaskExecutor {
                 chunk.setRetryCount(retryCount);
                 documentChunkMapper.updateById(chunk);
 
-                log.debug("chunk翻译成功: chunkId={}, title={}", chunk.getId(), chunk.getTitle());
-                return CompletableFuture.completedFuture(true);
+                log.info("chunk翻译成功: chunkId={}, title={}", chunk.getId(), chunk.getTitle());
+                return true;
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 retryCount++;
                 log.warn("chunk翻译失败, 重试: chunkId={}, retry={}/{}",
-                        chunk.getId(), retryCount, MAX_RETRY);
+                        chunk.getId(), retryCount, MAX_RETRY, e);
 
                 if (retryCount >= MAX_RETRY) {
                     // 重试耗尽，标记为失败
@@ -159,11 +182,11 @@ public class TranslationTaskExecutor {
                     documentChunkMapper.updateById(chunk);
 
                     log.error("chunk翻译最终失败: chunkId={}, title={}", chunk.getId(), chunk.getTitle(), e);
-                    return CompletableFuture.completedFuture(false);
+                    return false;
                 }
             }
         }
-        return CompletableFuture.completedFuture(false);
+        return false;
     }
 
     /**

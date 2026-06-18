@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -39,7 +42,67 @@ public class ALimtTranslationClient {
         }
     }
 
+    /** 阿里云翻译 API 单次最大字符数 */
+    private static final int MAX_CHARS_PER_REQUEST = 5000;
+
     public String translate(String text, String sourceLanguage, String targetLanguage) {
+        // 超长文本分段翻译（阿里云 API 限制 10000 字符，用 5000 留安全余量）
+        if (text.length() > MAX_CHARS_PER_REQUEST) {
+            return translateLongText(text, sourceLanguage, targetLanguage);
+        }
+        return doTranslate(text, sourceLanguage, targetLanguage);
+    }
+
+    /**
+     * 分段翻译超长文本
+     * <p>按句号/换行符拆分，每段不超过 {@value #MAX_CHARS_PER_REQUEST} 字符</p>
+     */
+    private String translateLongText(String text, String sourceLanguage, String targetLanguage) {
+        log.info("文本超长({}字符), 启用分段翻译", text.length());
+        List<String> segments = splitText(text, MAX_CHARS_PER_REQUEST);
+        StringBuilder result = new StringBuilder();
+        for (String segment : segments) {
+            result.append(doTranslate(segment, sourceLanguage, targetLanguage));
+        }
+        return result.toString();
+    }
+
+    /**
+     * 按换行符或句号拆分文本，每段不超过 maxLen 字符
+     */
+    private List<String> splitText(String text, int maxLen) {
+        List<String> segments = new ArrayList<>();
+        // 优先按换行拆分
+        String[] parts = text.split("(?<=\n)");
+        StringBuilder current = new StringBuilder();
+        for (String part : parts) {
+            if (current.length() + part.length() > maxLen && !current.isEmpty()) {
+                segments.add(current.toString());
+                current = new StringBuilder();
+            }
+            // 单个 part 本身就超过 maxLen，强制截断
+            if (part.length() > maxLen) {
+                if (!current.isEmpty()) {
+                    segments.add(current.toString());
+                    current = new StringBuilder();
+                }
+                for (int i = 0; i < part.length(); i += maxLen) {
+                    segments.add(part.substring(i, Math.min(i + maxLen, part.length())));
+                }
+            } else {
+                current.append(part);
+            }
+        }
+        if (!current.isEmpty()) {
+            segments.add(current.toString());
+        }
+        return segments;
+    }
+
+    /**
+     * 执行单次阿里云翻译 API 调用
+     */
+    private String doTranslate(String text, String sourceLanguage, String targetLanguage) {
         try {
             // 创建翻译请求
             TranslateGeneralRequest request = new TranslateGeneralRequest()
@@ -59,6 +122,10 @@ public class ALimtTranslationClient {
                         sourceLanguage, targetLanguage, text.length(), translated.length());
                 return translated;
             }
+            log.error("阿里云翻译返回空数据: sourceLang={}, targetLang={}, code={}, message={}",
+                    sourceLanguage, targetLanguage,
+                    response.getBody() != null ? response.getBody().getCode() : "null",
+                    response.getBody() != null ? response.getBody().getMessage() : "null");
             throw new BusinessException(ResultCode.TRANSLATION_FAIL);
 
         } catch (BusinessException e) {
