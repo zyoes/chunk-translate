@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
  * 翻译管理控制器
  * <p>
@@ -21,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
  * <ul>
  *   <li>POST /api/translation/start — 启动翻译任务（异步执行，立即返回）</li>
  *   <li>GET  /api/translation/progress/{documentId} — 查询翻译进度（支持前端轮询）</li>
+ *   <li>PUT  /api/translation/chunk/{chunkId} — 校对编辑译文（用户手动修改）</li>
+ *   <li>PUT  /api/translation/chunk/{chunkId}/source — 校对编辑原文（用户手动修改）</li>
  * </ul>
  */
 @Tag(name = "翻译管理", description = "翻译任务启动、进度查询")
@@ -63,5 +67,42 @@ public class TranslationController {
     public Result<TranslationProgressResponse> getProgress(
             @Parameter(description = "文档ID") @PathVariable Long documentId) {
         return Result.success(translationService.getProgress(documentId));
+    }
+
+    /**
+     * 校对编辑译文
+     * <p>
+     * 用户在前端手动修改译文后提交，同时更新 document_chunk 和 translation_result 表。
+     * </p>
+     *
+     * @param chunkId 分块ID
+     * @param body    请求体，包含 translation 字段
+     * @return 操作结果
+     */
+    @Operation(summary = "校对编辑译文", description = "用户手动修改某分块的译文")
+    @PutMapping("/chunk/{chunkId}")
+    public Result<Void> updateChunkTranslation(
+            @Parameter(description = "分块ID") @PathVariable Long chunkId,
+            @RequestBody Map<String, String> body) {
+        String translation = body.get("translation");
+        translationService.updateChunkTranslation(chunkId, translation);
+        return Result.success();
+    }
+
+    /**
+     * 校对编辑原文
+     *
+     * @param chunkId 分块ID
+     * @param body    请求体，包含 content 字段
+     * @return 操作结果
+     */
+    @Operation(summary = "校对编辑原文", description = "用户手动修改某分块的原文内容")
+    @PutMapping("/chunk/{chunkId}/source")
+    public Result<Void> updateChunkSource(
+            @Parameter(description = "分块ID") @PathVariable Long chunkId,
+            @RequestBody Map<String, String> body) {
+        String content = body.get("content");
+        translationService.updateChunkSource(chunkId, content);
+        return Result.success();
     }
 }

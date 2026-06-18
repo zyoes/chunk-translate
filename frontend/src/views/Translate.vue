@@ -18,13 +18,21 @@
           </el-button>
         </el-upload>
         <el-button
+          v-if="!isTranslating"
           type="success"
           :icon="VideoPlay"
           @click="handleStartTranslation"
-          :disabled="!documentId || isTranslating"
-          :loading="isTranslating"
+          :disabled="!documentId"
         >
-          {{ isTranslating ? '翻译中...' : '开始翻译' }}
+          开始翻译
+        </el-button>
+        <el-button
+          v-if="isTranslating"
+          type="danger"
+          :icon="Close"
+          @click="handleStopTranslation"
+        >
+          中止翻译
         </el-button>
         <el-dropdown @command="handleExport" :disabled="!documentId">
           <el-button :icon="Download">导出</el-button>
@@ -76,35 +84,85 @@
 
       <!-- Center: Dual Panels -->
       <div class="content">
-        <!-- Left Panel: Source -->
+        <!-- Left Panel: Source（支持点击校对） -->
         <div class="panel">
           <div class="panel-header">
             <span>📖 原文内容</span>
-            <el-tag v-if="selectedChunk" type="info" size="small">
-              {{ selectedChunk.title }}
-            </el-tag>
+            <div class="panel-header-actions">
+              <el-tag v-if="selectedChunk" type="info" size="small">
+                {{ selectedChunk.title }}
+              </el-tag>
+              <el-button
+                v-if="selectedChunk && editingField !== 'source'"
+                size="small"
+                type="warning"
+                :icon="Edit"
+                @click="startEditSource"
+              >
+                校对
+              </el-button>
+              <template v-if="editingField === 'source'">
+                <el-button size="small" type="success" :icon="Check" @click="saveEdit">保存</el-button>
+                <el-button size="small" :icon="Close" @click="cancelEdit">取消</el-button>
+              </template>
+            </div>
           </div>
           <div class="panel-body">
             <template v-if="selectedChunk">
               <h2>{{ selectedChunk.title }}</h2>
-              <p class="panel-text">{{ selectedChunk.content || '暂无内容' }}</p>
+              <textarea
+                v-if="editingField === 'source'"
+                v-model="editText"
+                class="edit-textarea source-edit"
+                placeholder="在此修改原文..."
+                @blur="handleEditBlur"
+              />
+              <p
+                v-else
+                class="panel-text clickable-text"
+                @click="startEditSource"
+              >{{ selectedChunk.content || '暂无内容' }}</p>
             </template>
             <el-empty v-else description="请从左侧目录选择章节" />
           </div>
         </div>
 
-        <!-- Right Panel: Translation -->
+        <!-- Right Panel: Translation（支持点击校对） -->
         <div class="panel">
           <div class="panel-header">
             <span>🌍 翻译结果</span>
-            <el-tag v-if="selectedChunk?.translation" type="success" size="small">
-              已翻译
-            </el-tag>
+            <div class="panel-header-actions">
+              <el-tag v-if="selectedChunk?.translation" type="success" size="small">已翻译</el-tag>
+              <el-button
+                v-if="selectedChunk?.translation && editingField !== 'translation'"
+                size="small"
+                type="warning"
+                :icon="Edit"
+                @click="startEditTranslation"
+              >
+                校对
+              </el-button>
+              <template v-if="editingField === 'translation'">
+                <el-button size="small" type="success" :icon="Check" @click="saveEdit">保存</el-button>
+                <el-button size="small" :icon="Close" @click="cancelEdit">取消</el-button>
+              </template>
+            </div>
           </div>
           <div class="panel-body">
             <template v-if="selectedChunk?.translation">
               <h2>{{ selectedChunk.title }}</h2>
-              <p class="panel-text">{{ selectedChunk.translation }}</p>
+              <textarea
+                v-if="editingField === 'translation'"
+                v-model="editText"
+                class="edit-textarea"
+                placeholder="在此修改译文..."
+                @blur="handleEditBlur"
+              />
+              <p
+                v-else
+                class="panel-text clickable-text"
+                @click="startEditTranslation"
+              >{{ selectedChunk.translation }}</p>
             </template>
             <el-empty v-else-if="!selectedChunk" description="请从左侧目录选择章节" />
             <el-empty v-else description="暂未翻译，点击右上方「开始翻译」" />
@@ -185,9 +243,10 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { ElMessage, ElLoading } from 'element-plus'
-import { UploadFilled, VideoPlay, Download } from '@element-plus/icons-vue'
+import { UploadFilled, VideoPlay, Download, Edit, Check, Close } from '@element-plus/icons-vue'
 import { uploadDocument, getDocumentDetail } from '../api/document'
 import { startTranslation, getProgress, exportFile } from '../api/translation'
+import { updateChunkTranslation, updateChunkSource } from '../api/edit'
 
 // ==================== 状态 ====================
 const documentId = ref(null)
@@ -197,7 +256,14 @@ const targetLang = ref('zh')
 const isTranslating = ref(false)
 const treeData = ref([])
 const chunks = ref([])
-const selectedChunk = ref(null)
+
+// Fix1: 用 selectedNode 记录当前点击的树节点，selectedChunk 改为 computed 动态派生
+const selectedNode = ref(null)
+
+// 校对编辑状态：editingField = null | 'source' | 'translation'
+const editingField = ref(null)
+const editText = ref('')
+
 let progressTimer = null
 
 // ==================== 计算属性 ====================
@@ -210,6 +276,35 @@ const progressPercent = computed(() => {
   return Math.round((completedChunks.value / totalChunks.value) * 100)
 })
 
+/**
+ * Fix1 + Fix2: selectedChunk 从 selectedNode + chunks 动态计算
+ * - 切换树节点 → selectedNode 变化 → selectedChunk 自动重新计算
+ * - 轮询更新 chunks → selectedChunk 自动重新计算（译文实时刷新）
+ */
+const selectedChunk = computed(() => {
+  const node = selectedNode.value
+  if (!node) return null
+
+  // 通过 nodeId 匹配 chunk（nodeId 格式为 "chunk-{chunkId}"）
+  // 如果 nodeId 不可用，按 title 匹配
+  let chunk = null
+  if (node.nodeId) {
+    const chunkId = parseInt(node.nodeId.replace('chunk-', ''))
+    chunk = chunks.value.find(c => c.chunkId === chunkId)
+  }
+  if (!chunk) {
+    chunk = chunks.value.find(c => c.title === node.title)
+  }
+
+  return {
+    title: node.title,
+    content: node.content || '',
+    chunkId: chunk?.chunkId || null,
+    translation: chunk?.translation || null,
+    status: chunk?.status
+  }
+})
+
 // ==================== 上传 ====================
 async function handleFileChange(file) {
   const loading = ElLoading.service({ text: '上传中...' })
@@ -218,6 +313,10 @@ async function handleFileChange(file) {
     const data = res.data
     documentId.value = data.id
     fileName.value = data.fileName
+    // 重置选中状态
+    selectedNode.value = null
+    editingField.value = null
+    chunks.value = []
     ElMessage.success('上传成功，正在解析文档...')
     setTimeout(() => loadDocumentDetail(data.id), 2000)
   } catch (e) {
@@ -232,6 +331,10 @@ async function loadDocumentDetail(id) {
     const res = await getDocumentDetail(id)
     treeData.value = res.data.tree || []
     ElMessage.success('文档解析完成')
+    // 自动选中第一个节点，立即显示原文内容
+    if (treeData.value.length > 0) {
+      selectedNode.value = treeData.value[0]
+    }
   } catch (e) {
     console.error('加载文档详情失败', e)
   }
@@ -254,18 +357,27 @@ async function handleStartTranslation() {
   }
 }
 
+// 中止翻译：停止轮询，重置状态
+function handleStopTranslation() {
+  stopPolling()
+  isTranslating.value = false
+  ElMessage.warning('已中止翻译轮询，后台任务仍在继续')
+}
+
 function startPolling() {
   stopPolling()
   progressTimer = setInterval(async () => {
     try {
       const res = await getProgress(documentId.value)
       const data = res.data
+      // 更新 chunks 数组 → selectedChunk computed 自动重新计算 → 面板实时刷新
       chunks.value = data.chunks || []
       updateTreeStatus(data.chunks)
       if (data.progressPercent >= 100) {
         isTranslating.value = false
         stopPolling()
         ElMessage.success('翻译完成！')
+        // 翻译完成后刷新文档详情（目录树可能更新）
         loadDocumentDetail(documentId.value)
       }
     } catch (e) {
@@ -296,14 +408,67 @@ function handleExport(format) {
   ElMessage.success(`正在导出 ${format.toUpperCase()}...`)
 }
 
-// ==================== 目录树 ====================
+// ==================== 目录树点击 ====================
 function handleNodeClick(data) {
-  const chunk = chunks.value.find(c => c.title === data.title)
-  selectedChunk.value = {
-    title: data.title,
-    content: data.content,
-    translation: chunk?.translation || null,
-    status: chunk?.status
+  selectedNode.value = data
+  // 切换节点时退出编辑模式
+  editingField.value = null
+}
+
+// ==================== 校对编辑 ====================
+function startEditSource() {
+  editText.value = selectedChunk.value?.content || ''
+  editingField.value = 'source'
+}
+
+function startEditTranslation() {
+  editText.value = selectedChunk.value?.translation || ''
+  editingField.value = 'translation'
+}
+
+function cancelEdit() {
+  editingField.value = null
+}
+
+// 失焦时自动保存（如果点击的是取消按钮则不保存）
+function handleEditBlur() {
+  if (!editingField.value) return
+  // 延迟检查：如果焦点转移到了取消按钮，cancelEdit 会先清空 editingField
+  setTimeout(() => {
+    if (editingField.value) {
+      saveEdit()
+    }
+  }, 150)
+}
+
+async function saveEdit() {
+  const chunk = selectedChunk.value
+  if (!chunk?.chunkId) {
+    ElMessage.warning('无法保存：分块ID不存在')
+    return
+  }
+
+  try {
+    if (editingField.value === 'translation') {
+      // 保存译文
+      await updateChunkTranslation(chunk.chunkId, editText.value)
+      const idx = chunks.value.findIndex(c => c.chunkId === chunk.chunkId)
+      if (idx !== -1) {
+        chunks.value[idx] = { ...chunks.value[idx], translation: editText.value }
+      }
+      ElMessage.success('译文已保存')
+    } else if (editingField.value === 'source') {
+      // 保存原文
+      await updateChunkSource(chunk.chunkId, editText.value)
+      // 更新当前树节点的 content
+      if (selectedNode.value) {
+        selectedNode.value = { ...selectedNode.value, content: editText.value }
+      }
+      ElMessage.success('原文已保存')
+    }
+    editingField.value = null
+  } catch (e) {
+    console.error('保存失败', e)
   }
 }
 
@@ -419,6 +584,11 @@ onBeforeUnmount(() => stopPolling())
   border-bottom: 1px solid #eee;
   flex-shrink: 0;
 }
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .panel-body {
   flex: 1;
   overflow-y: auto;
@@ -432,6 +602,41 @@ onBeforeUnmount(() => stopPolling())
 .panel-text {
   white-space: pre-wrap;
   color: #334155;
+}
+/* 可点击编辑的文本 */
+.clickable-text {
+  cursor: pointer;
+}
+
+/* ================= 校对编辑（Fix3） ================= */
+.edit-textarea {
+  width: 100%;
+  min-height: 300px;
+  height: 100%;
+  border: 2px solid #e5a000;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 15px;
+  line-height: 1.8;
+  font-family: "Microsoft YaHei", sans-serif;
+  color: #334155;
+  background: #fffbe6;
+  resize: vertical;
+  outline: none;
+  white-space: pre-wrap;
+}
+.edit-textarea:focus {
+  border-color: #e5a000;
+  box-shadow: 0 0 0 3px rgba(229, 160, 0, 0.15);
+}
+/* 原文编辑框：蓝色边框区分译文编辑 */
+.edit-textarea.source-edit {
+  border-color: #1677ff;
+  background: #f0f5ff;
+}
+.edit-textarea.source-edit:focus {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.15);
 }
 
 /* ================= Config ================= */

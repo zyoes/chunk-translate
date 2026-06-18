@@ -9,8 +9,10 @@ import com.example.chunktranslate.dto.TranslationProgressResponse;
 import com.example.chunktranslate.dto.TranslationStartRequest;
 import com.example.chunktranslate.entity.Document;
 import com.example.chunktranslate.entity.DocumentChunk;
+import com.example.chunktranslate.entity.TranslationResult;
 import com.example.chunktranslate.mapper.DocumentChunkMapper;
 import com.example.chunktranslate.mapper.DocumentMapper;
+import com.example.chunktranslate.mapper.TranslationResultMapper;
 import com.example.chunktranslate.service.translation.TranslationService;
 import com.example.chunktranslate.util.ParserUtil;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +49,7 @@ public class TranslationServiceImpl implements TranslationService {
 
     private final DocumentMapper documentMapper;
     private final DocumentChunkMapper documentChunkMapper;
+    private final TranslationResultMapper translationResultMapper;
     private final TranslationTaskExecutor translationTaskExecutor;
     private final ParserUtil parserUtil;
 
@@ -170,5 +173,66 @@ public class TranslationServiceImpl implements TranslationService {
         response.setChunks(chunkInfos);
 
         return response;
+    }
+
+    /**
+     * 更新分块译文（校对编辑）
+     * <p>
+     * 同时更新 document_chunk.translation 和 translation_result.target_text。
+     * </p>
+     */
+    @Override
+    public void updateChunkTranslation(Long chunkId, String translation) {
+        // 1. 查询分块
+        DocumentChunk chunk = documentChunkMapper.selectById(chunkId);
+        if (chunk == null) {
+            throw new BusinessException(ResultCode.DOCUMENT_NOT_FOUND);
+        }
+
+        // 2. 更新 document_chunk 表的译文
+        chunk.setTranslation(translation);
+        documentChunkMapper.updateById(chunk);
+
+        // 3. 更新 translation_result 表的译文（如果存在）
+        TranslationResult result = translationResultMapper.selectOne(
+                new LambdaQueryWrapper<TranslationResult>()
+                        .eq(TranslationResult::getChunkId, chunkId)
+                        .last("LIMIT 1")
+        );
+        if (result != null) {
+            result.setTargetText(translation);
+            translationResultMapper.updateById(result);
+        }
+
+        log.info("译文校对更新: chunkId={}, 新译文长度={}", chunkId, translation.length());
+    }
+
+    /**
+     * 更新分块原文（校对编辑）
+     * <p>
+     * 同时更新 document_chunk.content 和 translation_result.source_text。
+     * </p>
+     */
+    @Override
+    public void updateChunkSource(Long chunkId, String content) {
+        DocumentChunk chunk = documentChunkMapper.selectById(chunkId);
+        if (chunk == null) {
+            throw new BusinessException(ResultCode.DOCUMENT_NOT_FOUND);
+        }
+
+        chunk.setContent(content);
+        documentChunkMapper.updateById(chunk);
+
+        TranslationResult result = translationResultMapper.selectOne(
+                new LambdaQueryWrapper<TranslationResult>()
+                        .eq(TranslationResult::getChunkId, chunkId)
+                        .last("LIMIT 1")
+        );
+        if (result != null) {
+            result.setSourceText(content);
+            translationResultMapper.updateById(result);
+        }
+
+        log.info("原文校对更新: chunkId={}, 新原文长度={}", chunkId, content.length());
     }
 }

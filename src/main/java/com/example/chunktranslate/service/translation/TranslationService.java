@@ -46,4 +46,24 @@ public interface TranslationService {
      * @throws com.example.chunktranslate.common.exception.BusinessException 文档不存在时抛出
      */
     TranslationProgressResponse getProgress(Long documentId);
+
+    /**
+     * 更新分块译文（校对编辑）
+     * <p>
+     * 用户在前端手动修改译文后调用，同时更新 document_chunk 和 translation_result 表。
+     * </p>
+     *
+     * @param chunkId     分块ID
+     * @param translation 修改后的译文
+     * @throws com.example.chunktranslate.common.exception.BusinessException 分块不存在时抛出
+     */
+    void updateChunkTranslation(Long chunkId, String translation);
+
+    /**
+     * 更新分块原文（校对编辑）
+     *
+     * @param chunkId 分块ID
+     * @param content 修改后的原文
+     */
+    void updateChunkSource(Long chunkId, String content);
 }
