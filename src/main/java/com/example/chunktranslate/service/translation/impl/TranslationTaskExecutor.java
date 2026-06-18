@@ -123,6 +123,28 @@ public class TranslationTaskExecutor {
      */
     public Boolean translateSingleChunk(
             DocumentChunk chunk, String sourceLang, String targetLang) {
+
+        // 空内容防护：分块只有标题没有正文时，跳过翻译 API 调用，直接标记为已完成
+        if (chunk.getContent() == null || chunk.getContent().isBlank()) {
+            log.info("chunk内容为空(仅有标题), 跳过翻译: chunkId={}, title={}", chunk.getId(), chunk.getTitle());
+
+            TranslationResult result = new TranslationResult();
+            result.setDocumentId(chunk.getDocumentId());
+            result.setChunkId(chunk.getId());
+            result.setSourceText("");
+            result.setTargetText("");
+            result.setSourceLang(sourceLang);
+            result.setTargetLang(targetLang);
+            result.setStatus(TranslationStatus.COMPLETED.getCode());
+            translationResultMapper.insert(result);
+
+            chunk.setStatus(ChunkStatus.COMPLETED.getCode());
+            chunk.setTranslation("");
+            chunk.setRetryCount(0);
+            documentChunkMapper.updateById(chunk);
+            return true;
+        }
+
         int retryCount = 0;
 
         while (retryCount < MAX_RETRY) {

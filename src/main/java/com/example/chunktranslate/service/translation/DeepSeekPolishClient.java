@@ -55,7 +55,12 @@ public class DeepSeekPolishClient {
      */
     public String polish(String sourceText, String machineTranslation, String sourceLang, String targetLang) {
         // 构建用户提示
-        String userPrompt = POLISH_PROMPT_TEMPLATE.format(sourceLang, sourceText, targetLang, machineTranslation);
+        String userPrompt = POLISH_PROMPT_TEMPLATE.formatted(sourceLang, sourceText, targetLang, machineTranslation);
+
+        // 调试日志：打印实际发送给 DeepSeek 的 prompt 前 200 字，确认内容正确
+        log.info("DeepSeek润色请求: sourceLang={}, targetLang={}, 原文长度={}, 译文长度={}, prompt前200字={}",
+                sourceLang, targetLang, sourceText.length(), machineTranslation.length(),
+                userPrompt.substring(0, Math.min(200, userPrompt.length())));
 
         // 构建请求体
         JSONObject requestBody = new JSONObject();
@@ -86,6 +91,10 @@ public class DeepSeekPolishClient {
             // 解析响应
             String responseJson = response.body().string();
             JSONObject json = JSON.parseObject(responseJson);
+
+            // 调试日志：打印 DeepSeek 实际返回的内容前 200 字
+            log.info("DeepSeek润色响应: code={}, 响应前200字={}",
+                    response.code(), responseJson.substring(0, Math.min(200, responseJson.length())));
 
             // 获取润色后的译文
             String polished = json.getJSONArray("choices")

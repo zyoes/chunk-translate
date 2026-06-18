@@ -33,3 +33,4 @@ build/
 .vscode/
 
 flyway.conf
+uploads
