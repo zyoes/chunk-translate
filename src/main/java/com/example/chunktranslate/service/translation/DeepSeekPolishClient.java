@@ -96,11 +96,18 @@ public class DeepSeekPolishClient {
             log.info("DeepSeek润色响应: code={}, 响应前200字={}",
                     response.code(), responseJson.substring(0, Math.min(200, responseJson.length())));
 
+            // 获取 choices[0]
+            JSONObject choice = json.getJSONArray("choices").getJSONObject(0);
+
+            // 截断检测：finish_reason = "length" 表示因 max_tokens 限制导致输出被截断
+            String finishReason = choice.getString("finish_reason");
+            if ("length".equals(finishReason)) {
+                log.warn("DeepSeek输出被截断(finish_reason=length), 润色结果不完整, 将回退到机翻译文");
+                return null;  // 返回 null 触发调用方回退到机翻译文
+            }
+
             // 获取润色后的译文
-            String polished = json.getJSONArray("choices")
-                    .getJSONObject(0)
-                    .getJSONObject("message")
-                    .getString("content");
+            String polished = choice.getJSONObject("message").getString("content");
 
             // 记录润色结果
             log.debug("AI润色完成: 原文长度={}, 译文长度={}, 润色后长度={}",

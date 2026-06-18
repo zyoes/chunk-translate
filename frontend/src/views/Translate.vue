@@ -570,6 +570,7 @@ onBeforeUnmount(() => stopPolling())
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* ================= Sidebar ================= */
@@ -619,6 +620,7 @@ onBeforeUnmount(() => stopPolling())
   gap: 12px;
   padding: 12px;
   overflow: hidden;
+  min-height: 0;
 }
 .panel {
   flex: 1;
@@ -627,6 +629,7 @@ onBeforeUnmount(() => stopPolling())
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 .panel-header {

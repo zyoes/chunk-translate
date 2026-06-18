@@ -26,8 +26,8 @@ public class LlmConfig {
     /** 模型名称 */
     private String model = "deepseek-chat";
 
-    /** 单次请求最大 Token 数 */
-    private Integer maxTokens = 4096;
+    /** 单次请求最大 Token 数（润色长译文需足够大，避免输出截断） */
+    private Integer maxTokens = 16384;
 
     /** 温度参数（润色建议低温，保持确定性） */
     private Double temperature = 0.3;

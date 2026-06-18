@@ -103,5 +103,5 @@ deepseek:
     url: https://api.deepseek.com/v1/chat/completions
     key: your-deepseek-api-key
     model: deepseek-chat
-    max-tokens: 4096
+    max-tokens: 16384
     temperature: 0.3
