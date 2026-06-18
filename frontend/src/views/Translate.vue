@@ -90,7 +90,7 @@
             <span>📖 原文内容</span>
             <div class="panel-header-actions">
               <el-tag v-if="selectedChunk" type="info" size="small">
-                {{ selectedChunk.title }}
+                {{ truncatedTitle }}
               </el-tag>
               <el-button
                 v-if="selectedChunk && editingField !== 'source'"
@@ -109,7 +109,7 @@
           </div>
           <div class="panel-body">
             <template v-if="selectedChunk">
-              <h2>{{ selectedChunk.title }}</h2>
+              <h2 class="panel-title" :title="selectedChunk.title">{{ selectedChunk.title }}</h2>
               <textarea
                 v-if="editingField === 'source'"
                 v-model="editText"
@@ -132,9 +132,9 @@
           <div class="panel-header">
             <span>🌍 翻译结果</span>
             <div class="panel-header-actions">
-              <el-tag v-if="selectedChunk?.translation" type="success" size="small">已翻译</el-tag>
+              <el-tag v-if="hasTranslation" type="success" size="small">已翻译</el-tag>
               <el-button
-                v-if="selectedChunk?.translation && editingField !== 'translation'"
+                v-if="hasTranslation && editingField !== 'translation'"
                 size="small"
                 type="warning"
                 :icon="Edit"
@@ -149,8 +149,8 @@
             </div>
           </div>
           <div class="panel-body">
-            <template v-if="selectedChunk?.translation">
-              <h2>{{ selectedChunk.title }}</h2>
+            <template v-if="selectedChunk && hasTranslation">
+              <h2 class="panel-title" :title="selectedChunk.title">{{ translatedTitle }}</h2>
               <textarea
                 v-if="editingField === 'translation'"
                 v-model="editText"
@@ -162,7 +162,7 @@
                 v-else
                 class="panel-text clickable-text"
                 @click="startEditTranslation"
-              >{{ selectedChunk.translation }}</p>
+              >{{ selectedChunk.translation || '(本分块原文为空，无需翻译)' }}</p>
             </template>
             <el-empty v-else-if="!selectedChunk" description="请从左侧目录选择章节" />
             <el-empty v-else description="暂未翻译，点击右上方「开始翻译」" />
@@ -276,6 +276,37 @@ const progressPercent = computed(() => {
   return Math.round((completedChunks.value / totalChunks.value) * 100)
 })
 
+/** 当前分块是否已完成翻译（status 2=已完成，3=失败） */
+const hasTranslation = computed(() => {
+  const chunk = selectedChunk.value
+  return chunk && (chunk.status === 2 || chunk.status === 3)
+})
+
+/** 面板标题截断（el-tag 用，最多25字 + ...） */
+const truncatedTitle = computed(() => {
+  const t = selectedChunk.value?.title || ''
+  return t.length > 25 ? t.slice(0, 25) + '...' : t
+})
+
+/** 译文面板段落标题：优先使用后端返回的翻译标题，否则本地生成 */
+const translatedTitle = computed(() => {
+  const chunk = selectedChunk.value
+  // 后端返回的翻译标题
+  if (chunk?.translatedTitle) {
+    return chunk.translatedTitle
+  }
+  // 本地生成：从 chunks 数组中查找
+  const chunkData = chunks.value.find(c => c.chunkId === chunk?.chunkId)
+  if (chunkData?.translatedTitle) {
+    return chunkData.translatedTitle
+  }
+  // 回退：提取段落编号
+  const t = selectedChunk.value?.title || ''
+  const match = t.match(/段落\s*(\d+)/)
+  if (match) return 'Paragraph ' + match[1]
+  return t.length > 30 ? t.slice(0, 30) + '...' : t
+})
+
 /**
  * Fix1 + Fix2: selectedChunk 从 selectedNode + chunks 动态计算
  * - 切换树节点 → selectedNode 变化 → selectedChunk 自动重新计算
@@ -301,6 +332,7 @@ const selectedChunk = computed(() => {
     // chunk 未找到时，直接用 nodeId 作为 chunkId（翻译前也能保存原文）
     chunkId: chunk?.chunkId || (node.nodeId ? parseInt(node.nodeId) : null),
     translation: chunk?.translation || null,
+    translatedTitle: chunk?.translatedTitle || null,
     status: chunk?.status
   }
 })
@@ -566,11 +598,18 @@ onBeforeUnmount(() => stopPolling())
   align-items: center;
   width: 100%;
   padding-right: 8px;
+  gap: 6px;
+}
+.tree-node :deep(.el-tag) {
+  flex-shrink: 0;
 }
 .tree-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 200px;
+  font-size: 13px;
+  flex-shrink: 1;
 }
 
 /* ================= Content ================= */
@@ -614,6 +653,15 @@ onBeforeUnmount(() => stopPolling())
 .panel-body h2 {
   margin-bottom: 16px;
   color: #1e293b;
+}
+/* 面板标题：单行截断，避免长标题挤压内容区域 */
+.panel-title {
+  margin-bottom: 16px;
+  color: #1e293b;
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .panel-text {
   white-space: pre-wrap;

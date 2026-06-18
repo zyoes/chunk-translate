@@ -104,22 +104,85 @@ public class DocxParserStrategy implements DocumentParser {
                 flushSection(currentSection, sectionContent);
             }
 
-            // 全文无标题样式时，将所有段落文本合并为一个「全文」节点
+            // 全文无标题样式时，按段落智能分块（每约1500 tokens 或 20段为一块）
             if (roots.isEmpty()) {
-                StringBuilder fullText = new StringBuilder();
+                // 收集所有非空段落
+                List<String> paragraphs = new ArrayList<>();
                 for (XWPFParagraph paragraph : document.getParagraphs()) {
-                    fullText.append(paragraph.getText()).append("\n");
+                    String text = paragraph.getText().trim();
+                    if (!text.isEmpty()) {
+                        paragraphs.add(text);
+                    }
                 }
 
-                DocumentTreeNode node = new DocumentTreeNode();
-                node.setNodeId(UUID.randomUUID().toString());
-                node.setTitle("全文");
-                node.setLevel(1);
-                node.setContent(fullText.toString());
-                node.setChildren(new ArrayList<>());
-                node.setSummary(parserUtil.truncate(fullText.toString(), 100));
-                node.setTokenCount(parserUtil.estimateTokens(fullText.toString()));
-                roots.add(node);
+                if (paragraphs.isEmpty()) {
+                    // 文档完全为空，创建一个空节点
+                    DocumentTreeNode node = new DocumentTreeNode();
+                    node.setNodeId(UUID.randomUUID().toString());
+                    node.setTitle("全文");
+                    node.setLevel(1);
+                    node.setContent("");
+                    node.setChildren(new ArrayList<>());
+                    node.setTokenCount(0);
+                    roots.add(node);
+                } else {
+                    // 按段落累积分块
+                    final int TARGET_TOKENS = 1500;   // 每块目标 token 数
+                    final int MAX_PARAGRAPHS = 20;     // 每块最大段落数
+
+                    int chunkIndex = 1;
+                    StringBuilder chunkContent = new StringBuilder();
+                    int chunkTokens = 0;
+                    int chunkParaCount = 0;
+                    String chunkFirstSentence = null;  // 块内第一句话作为标题
+
+                    for (String para : paragraphs) {
+                        int paraTokens = parserUtil.estimateTokens(para);
+
+                        // 当前块已有内容，且加上新段落会超限 → 先封存当前块
+                        if (chunkParaCount > 0
+                                && (chunkTokens + paraTokens > TARGET_TOKENS
+                                    || chunkParaCount >= MAX_PARAGRAPHS)) {
+                            // 封存当前块
+                            DocumentTreeNode node = new DocumentTreeNode();
+                            node.setNodeId(UUID.randomUUID().toString());
+                            node.setTitle(buildChunkTitle(chunkFirstSentence, chunkIndex));
+                            node.setLevel(1);
+                            node.setContent(chunkContent.toString().trim());
+                            node.setChildren(new ArrayList<>());
+                            node.setSummary(parserUtil.truncate(chunkContent.toString().trim(), 100));
+                            node.setTokenCount(chunkTokens);
+                            roots.add(node);
+
+                            chunkIndex++;
+                            chunkContent = new StringBuilder();
+                            chunkTokens = 0;
+                            chunkParaCount = 0;
+                            chunkFirstSentence = null;
+                        }
+
+                        // 将段落加入当前块
+                        if (chunkFirstSentence == null) {
+                            chunkFirstSentence = para;
+                        }
+                        chunkContent.append(para).append("\n");
+                        chunkTokens += paraTokens;
+                        chunkParaCount++;
+                    }
+
+                    // 封存最后一块
+                    if (chunkParaCount > 0) {
+                        DocumentTreeNode node = new DocumentTreeNode();
+                        node.setNodeId(UUID.randomUUID().toString());
+                        node.setTitle(buildChunkTitle(chunkFirstSentence, chunkIndex));
+                        node.setLevel(1);
+                        node.setContent(chunkContent.toString().trim());
+                        node.setChildren(new ArrayList<>());
+                        node.setSummary(parserUtil.truncate(chunkContent.toString().trim(), 100));
+                        node.setTokenCount(chunkTokens);
+                        roots.add(node);
+                    }
+                }
             }
 
 
@@ -179,5 +242,28 @@ public class DocxParserStrategy implements DocumentParser {
         node.setContent(text);
         node.setSummary(parserUtil.truncate(text, 100));
         node.setTokenCount(parserUtil.estimateTokens(text));
+    }
+
+    /**
+     * 为无标题分块生成标题
+     * <p>
+     * 取块内第一段的前 50 个字符作为标题，加上序号前缀。
+     * 例："段落1 - 这是第一章的内容介绍..."
+     * </p>
+     *
+     * @param firstParagraph 块内第一段文本
+     * @param chunkIndex     块序号（从 1 开始）
+     * @return 生成的标题
+     */
+    private String buildChunkTitle(String firstParagraph, int chunkIndex) {
+        if (firstParagraph == null || firstParagraph.isEmpty()) {
+            return "段落 " + chunkIndex;
+        }
+        // 取第一句话（以句号/感叹号/问号分割），或截取前 50 字符
+        String title = firstParagraph.split("[。！？.!?]")[0].trim();
+        if (title.length() > 50) {
+            title = title.substring(0, 50) + "...";
+        }
+        return "段落" + chunkIndex + " - " + title;
     }
 }

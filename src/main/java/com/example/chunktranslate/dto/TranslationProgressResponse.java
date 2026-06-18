@@ -67,6 +67,9 @@ public class TranslationProgressResponse {
         @Schema(description = "译文（翻译完成后才有）")
         private String translation;
 
+        @Schema(description = "翻译后的标题（从译文中提取）")
+        private String translatedTitle;
+
         @Schema(description = "失败原因（仅失败时有值）")
         private String errorMsg;
     }

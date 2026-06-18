@@ -200,17 +200,28 @@ public class TranslationTaskExecutor {
             return true;
         }
 
+        // 标题拼入翻译：对于“段落N - ...”格式的标题，将标题放在内容前面一起翻译
+        // 翻译后可从结果中提取翻译标题
+        String title = chunk.getTitle();
+        boolean hasTitlePrefix = title != null
+                && !title.isBlank()
+                && title.matches("段落\\s*\\d+\\s*-.*")
+                && !chunk.getContent().trim().startsWith(title);
+        String contentForTranslation = hasTitlePrefix
+                ? title + "\n\n" + chunk.getContent()
+                : chunk.getContent();
+
         int retryCount = 0;
 
         while (retryCount < MAX_RETRY) {
             try {
                 // 第一级：阿里云机器翻译（保证准确性）
                 String machineTranslation = alimtClient.translate(
-                        chunk.getContent(), sourceLang, targetLang);
+                        contentForTranslation, sourceLang, targetLang);
 
                 log.info("alimt翻译结果: chunkId={}, 原文长度={}, 译文长度={}, 译文前100字={}",
                         chunk.getId(),
-                        chunk.getContent().length(),
+                        contentForTranslation.length(),
                         machineTranslation != null ? machineTranslation.length() : "null",
                         machineTranslation != null && machineTranslation.length() > 100
                                 ? machineTranslation.substring(0, 100) : machineTranslation);
@@ -219,27 +230,87 @@ public class TranslationTaskExecutor {
                 String polished;
                 if (machineTranslation != null && machineTranslation.length() <= MAX_POLISH_LENGTH) {
                     polished = deepSeekPolishClient.polish(
-                            chunk.getContent(), machineTranslation, sourceLang, targetLang);
+                            contentForTranslation, machineTranslation, sourceLang, targetLang);
                 } else {
                     log.info("译文过长({}字符), 跳过AI润色, 直接使用机翻译文",
                             machineTranslation != null ? machineTranslation.length() : 0);
                     polished = machineTranslation;
                 }
 
-                // 写入翻译结果表（记录原文和译文，方便后续查看对照）
+                // 润色结果空值防护：若 DeepSeek 返回空内容，回退到机翻译文
+                if (polished == null || polished.isBlank()) {
+                    log.warn("润色结果为空, 回退到机翻译文: chunkId={}, machineTranslation长度={}",
+                            chunk.getId(), machineTranslation != null ? machineTranslation.length() : 0);
+                    polished = machineTranslation;
+                }
+                // 机翻译文也为空时，直接使用原文（避免存储 null）
+                if (polished == null || polished.isBlank()) {
+                    log.warn("机翻译文也为空, 直接使用原文: chunkId={}", chunk.getId());
+                    polished = contentForTranslation;
+                }
+
+                // 提取翻译标题：若之前拼入了标题，从译文开头剥离翻译后的标题部分
+                String translationBody = polished;
+                String extractedTitle = null;
+                if (hasTitlePrefix && polished != null) {
+                    // 方法1: 按双换行分割（最可靠）
+                    String[] parts = polished.split("\n\n", 2);
+                    if (parts.length == 2) {
+                        extractedTitle = parts[0].trim();
+                        translationBody = parts[1].trim();
+                        log.info("提取翻译标题(双换行): chunkId={}, 译后标题={}", chunk.getId(), extractedTitle);
+                    } else {
+                        // 方法2: 按第一个换行分割
+                        int firstNl = polished.indexOf('\n');
+                        if (firstNl > 0 && firstNl < 200) {
+                            extractedTitle = polished.substring(0, firstNl).trim();
+                            translationBody = polished.substring(firstNl + 1).trim();
+                            log.info("提取翻译标题(单换行): chunkId={}, 译后标题={}", chunk.getId(), extractedTitle);
+                        } else {
+                            // 方法3: 基于原文标题字符数的启发式提取
+                            // 原标题占拼入内容的比例，乘以译文长度，估算译后标题结束位置
+                            int originalTitleLen = title.length();
+                            int totalInputLen = contentForTranslation.length();
+                            int estimatedEnd = (int) ((double) originalTitleLen / totalInputLen * polished.length());
+                            // 在估算位置附近查找句末分隔符（句号、逗号、分号等）
+                            int bestSplit = -1;
+                            int searchStart = Math.max(5, estimatedEnd - 40);
+                            int searchEnd = Math.min(polished.length() - 1, estimatedEnd + 60);
+                            for (int i = searchStart; i < searchEnd; i++) {
+                                char c = polished.charAt(i);
+                                if (c == '.' || c == ',' || c == ';' || c == ':' || c == '\n') {
+                                    if (bestSplit < 0 || Math.abs(i - estimatedEnd) < Math.abs(bestSplit - estimatedEnd)) {
+                                        bestSplit = i;
+                                    }
+                                }
+                            }
+                            if (bestSplit > 0) {
+                                extractedTitle = polished.substring(0, bestSplit + 1).trim();
+                                translationBody = polished.substring(bestSplit + 1).trim();
+                                log.info("提取翻译标题(启发式): chunkId={}, 译后标题={}, 估算位置={}", chunk.getId(), extractedTitle, estimatedEnd);
+                            } else {
+                                log.warn("无法提取翻译标题: chunkId={}, polished前100字={}", chunk.getId(),
+                                        polished.length() > 100 ? polished.substring(0, 100) : polished);
+                            }
+                        }
+                    }
+                }
+
+                // 写入翻译结果表（记录原文和完整译文，包含翻译标题）
                 TranslationResult result = new TranslationResult();
                 result.setDocumentId(chunk.getDocumentId());
                 result.setChunkId(chunk.getId());
                 result.setSourceText(chunk.getContent());
-                result.setTargetText(polished);
+                result.setTargetText(polished);  // 完整译文（含标题）
                 result.setSourceLang(sourceLang);
                 result.setTargetLang(targetLang);
                 result.setStatus(TranslationStatus.COMPLETED.getCode());
                 translationResultMapper.insert(result);
 
-                // 更新 chunk 状态为已完成
+                // 更新 chunk 状态为已完成（只存正文译文，不含标题）
                 chunk.setStatus(ChunkStatus.COMPLETED.getCode());
-                chunk.setTranslation(polished);
+                chunk.setTranslation(translationBody);
+                chunk.setTranslatedTitle(extractedTitle);  // 存储翻译后的标题
                 chunk.setRetryCount(retryCount);
                 documentChunkMapper.updateById(chunk);
 

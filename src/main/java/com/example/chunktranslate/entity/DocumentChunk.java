@@ -21,6 +21,8 @@ public class DocumentChunk extends BaseEntity {
 
     private String translation;
 
+    private String translatedTitle;
+
     private String errorMsg;
 
     private Integer retryCount;

@@ -154,6 +154,12 @@ public class TranslationServiceImpl implements TranslationService {
                     info.setSourcePreview(parserUtil.truncate(chunk.getContent(), 100));
                     info.setTranslation(chunk.getTranslation());
                     info.setErrorMsg(chunk.getErrorMsg());
+
+                    // 翻译标题：直接从 chunk 的 translatedTitle 字段读取
+                    if (chunk.getTranslatedTitle() != null && !chunk.getTranslatedTitle().isEmpty()) {
+                        info.setTranslatedTitle(chunk.getTranslatedTitle());
+                    }
+
                     return info;
                 })
                 .collect(Collectors.toList());
