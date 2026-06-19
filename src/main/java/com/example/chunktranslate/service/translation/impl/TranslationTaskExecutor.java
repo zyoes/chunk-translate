@@ -345,9 +345,8 @@ public class TranslationTaskExecutor {
      */
     private void updateDocumentStatus(Long documentId, boolean allSuccess) {
         Document document = documentMapper.selectById(documentId);
-        document.setStatus(allSuccess
-                ? DocumentStatus.PARSED.getCode()
-                : DocumentStatus.PARSE_FAILED.getCode());
+        document.setStatus(DocumentStatus.PARSED.getCode());
+
         documentMapper.updateById(document);
 
         log.info("翻译任务完成: documentId={}, 全部成功={}", documentId, allSuccess);

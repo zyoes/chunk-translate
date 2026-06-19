@@ -101,7 +101,7 @@ public class TranslationServiceImpl implements TranslationService {
         );
 
         // 5. 更新文档状态为「翻译中」
-        document.setStatus(DocumentStatus.PARSING.getCode());
+        document.setStatus(DocumentStatus.TRANSLATING.getCode());
         documentMapper.updateById(document);  // Bug修复：补上 updateById，否则状态不会写入DB
 
         // 6. 通过独立的 Bean 调用异步方法（走 Spring 代理，@Async 生效）
@@ -113,7 +113,7 @@ public class TranslationServiceImpl implements TranslationService {
         TranslationProgressResponse response = new TranslationProgressResponse();
         response.setDocumentId(document.getId());
         response.setFileName(document.getFileName());
-        response.setStatus(DocumentStatus.PARSING.getCode());
+        response.setStatus(DocumentStatus.TRANSLATING.getCode());
         response.setStatusDesc("翻译中");
         response.setTotalChunks(allChunks.size());
         response.setCompletedChunks(0);
