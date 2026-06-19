@@ -535,36 +535,62 @@ onBeforeUnmount(() => stopPolling())
 </script>
 
 <style scoped>
+/* ================= CSS 变量 ================= */
 .app-container {
+  --color-primary: #1677ff;
+  --color-primary-light: #e6f4ff;
+  --color-success: #52c41a;
+  --color-success-light: #f6ffed;
+  --color-warning: #fa8c16;
+  --color-warning-light: #fffbe6;
+  --color-danger: #ff4d4f;
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-border: #e5e7eb;
+  --color-border-light: #f0f0f0;
+  --color-bg: #f5f7fb;
+  --color-bg-card: #ffffff;
+  --radius: 12px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.06);
+  --transition: all .25s cubic-bezier(.4,0,.2,1);
+
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f5f7fb;
-  font-family: "Microsoft YaHei", sans-serif;
+  background: var(--color-bg);
+  font-family: "Microsoft YaHei", -apple-system, "PingFang SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ================= Header ================= */
 .header {
   height: 64px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 28px;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
 }
 .logo {
   font-size: 20px;
   font-weight: 700;
-  color: #1677ff;
+  color: var(--color-primary);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  letter-spacing: .5px;
+}
+.logo :deep(.el-icon) {
+  color: var(--color-primary);
 }
 .header-right {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -579,30 +605,36 @@ onBeforeUnmount(() => stopPolling())
 /* ================= Sidebar ================= */
 .sidebar {
   width: 280px;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--color-bg-card);
+  border-right: 1px solid var(--color-border);
   overflow-y: auto;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 .sidebar-header {
-  padding: 16px 18px;
+  padding: 18px 20px;
   font-weight: 700;
   font-size: 15px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  color: var(--color-text);
+  background: #fafbfc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .sidebar-empty {
-  padding: 40px 0;
+  padding: 48px 0;
 }
 .tree-node {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding-right: 8px;
-  gap: 6px;
+  padding-right: 6px;
+  gap: 8px;
 }
 .tree-node :deep(.el-tag) {
   flex-shrink: 0;
@@ -611,39 +643,48 @@ onBeforeUnmount(() => stopPolling())
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 200px;
+  max-width: 180px;
   font-size: 13px;
   flex-shrink: 1;
+  transition: var(--transition);
 }
 
-/* ================= Content ================= */
+/* ================= Content Panels ================= */
 .content {
   flex: 1;
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  gap: 16px;
+  padding: 16px;
   overflow: hidden;
   min-height: 0;
 }
 .panel {
   flex: 1;
-  background: #fff;
-  border-radius: 12px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+.panel:hover {
+  border-color: var(--color-border);
 }
 .panel-header {
   height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
+  padding: 0 20px;
   font-weight: 600;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  background: #fafbfc;
+  color: var(--color-text);
+  font-size: 14px;
 }
 .panel-header-actions {
   display: flex;
@@ -653,140 +694,251 @@ onBeforeUnmount(() => stopPolling())
 .panel-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  line-height: 1.8;
+  padding: 24px 28px;
+  line-height: 1.9;
 }
-.panel-body h2 {
-  margin-bottom: 16px;
-  color: #1e293b;
+.panel-body :deep(h2) {
+  margin-bottom: 20px;
+  color: var(--color-text);
+  font-size: 20px;
+  position: relative;
+  padding-bottom: 12px;
 }
-/* 面板标题：单行截断，避免长标题挤压内容区域 */
+.panel-body :deep(h2)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 2px;
+}
 .panel-title {
-  margin-bottom: 16px;
-  color: #1e293b;
-  font-size: 18px;
+  margin-bottom: 20px;
+  color: var(--color-text);
+  font-size: 20px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+  padding-bottom: 12px;
+}
+.panel-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 2px;
 }
 .panel-text {
   white-space: pre-wrap;
   color: #334155;
+  font-size: 15px;
 }
-/* 可点击编辑的文本 */
 .clickable-text {
   cursor: pointer;
+  padding: 4px 0;
+  border-radius: 6px;
+  transition: var(--transition);
+}
+.clickable-text:hover {
+  background: var(--color-primary-light);
+  padding: 4px 8px;
+  margin: 0 -8px;
 }
 
-/* ================= 校对编辑（Fix3） ================= */
+/* ================= 编辑区 ================= */
 .edit-textarea {
   width: 100%;
-  min-height: 300px;
-  height: 100%;
+  min-height: 320px;
+  height: calc(100% - 80px);
   border: 2px solid #e5a000;
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 16px;
   font-size: 15px;
-  line-height: 1.8;
-  font-family: "Microsoft YaHei", sans-serif;
+  line-height: 1.9;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
   color: #334155;
-  background: #fffbe6;
+  background: var(--color-warning-light);
   resize: vertical;
   outline: none;
   white-space: pre-wrap;
+  transition: var(--transition);
 }
 .edit-textarea:focus {
   border-color: #e5a000;
-  box-shadow: 0 0 0 3px rgba(229, 160, 0, 0.15);
+  box-shadow: 0 0 0 4px rgba(229,160,0,.12);
 }
-/* 原文编辑框：蓝色边框区分译文编辑 */
 .edit-textarea.source-edit {
-  border-color: #1677ff;
-  background: #f0f5ff;
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 .edit-textarea.source-edit:focus {
-  border-color: #1677ff;
-  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(22,119,255,.12);
 }
 
-/* ================= Config ================= */
+/* ================= Config Panel ================= */
 .config {
   width: 320px;
-  background: #fff;
-  border-left: 1px solid #e5e7eb;
+  background: var(--color-bg-card);
+  border-left: 1px solid var(--color-border);
   overflow-y: auto;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 .config-header {
-  padding: 16px 18px;
+  padding: 18px 20px;
   font-weight: 700;
   font-size: 15px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  color: var(--color-text);
+  background: #fafbfc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .config-form {
-  padding: 16px;
+  padding: 20px;
 }
 .form-group {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: #475569;
-  font-weight: 500;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: .3px;
 }
-.form-group .el-select {
+.form-group :deep(.el-select) {
   width: 100%;
+}
+.doc-info {
+  margin-top: 8px;
+}
+.doc-info :deep(.el-divider) {
+  margin: 16px 0;
 }
 .doc-info-item {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--color-text-secondary);
+  padding: 6px 0;
 }
 .chunk-box {
-  margin-top: 4px;
+  margin-top: 8px;
+}
+.chunk-box :deep(.el-divider) {
+  margin: 16px 0;
+}
+.chunk-box > strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: .3px;
 }
 .chunk-list {
-  margin-top: 12px;
+  margin-top: 14px;
   max-height: 320px;
   overflow-y: auto;
+  background: #fafbfc;
+  border-radius: 8px;
+  padding: 4px 12px;
 }
 .chunk-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--color-border-light);
+  transition: var(--transition);
 }
 .chunk-item:last-child {
   border-bottom: none;
 }
+.chunk-item:hover {
+  background: #f0f5ff;
+  margin: 0 -8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
 .chunk-name {
   font-size: 13px;
-  color: #475569;
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 160px;
+  max-width: 150px;
 }
 
 /* ================= Footer ================= */
 .footer {
-  padding: 14px 24px;
-  background: #fff;
-  border-top: 1px solid #e5e7eb;
+  padding: 16px 28px;
+  background: var(--color-bg-card);
+  border-top: 1px solid var(--color-border);
   flex-shrink: 0;
+  box-shadow: 0 -1px 3px rgba(0,0,0,.03);
 }
 .footer-top {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-  color: #64748b;
+  margin-bottom: 12px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+.footer-top span:first-child {
+  color: var(--color-text);
+  font-weight: 600;
   font-size: 14px;
+}
+.footer :deep(.el-progress) {
+  line-height: 1;
+}
+
+/* ================= 滚动条美化 ================= */
+.sidebar::-webkit-scrollbar,
+.panel-body::-webkit-scrollbar,
+.config::-webkit-scrollbar,
+.chunk-list::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar::-webkit-scrollbar-thumb,
+.panel-body::-webkit-scrollbar-thumb,
+.config::-webkit-scrollbar-thumb,
+.chunk-list::-webkit-scrollbar-thumb {
+  background: #d0d5dd;
+  border-radius: 10px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover,
+.panel-body::-webkit-scrollbar-thumb:hover,
+.config::-webkit-scrollbar-thumb:hover {
+  background: #b0b7c3;
+}
+
+/* ================= Element Plus 微调 ================= */
+.sidebar :deep(.el-tree-node__content) {
+  padding: 6px 12px;
+  margin: 2px 4px;
+  border-radius: 8px;
+  transition: var(--transition);
+}
+.sidebar :deep(.el-tree-node__content:hover) {
+  background: #f3f4f6;
+}
+.sidebar :deep(.el-tree-node.is-current > .el-tree-node__content) {
+  background: var(--color-primary-light) !important;
+  color: var(--color-primary);
 }
 </style>
