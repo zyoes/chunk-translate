@@ -10,7 +10,6 @@ import com.example.chunktranslate.mapper.DocumentChunkMapper;
 import com.example.chunktranslate.mapper.DocumentMapper;
 import com.example.chunktranslate.service.export.ExportService;
 import com.itextpdf.text.Font;
-import com.itextpdf.text.FontFactory;
 import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.pdf.BaseFont;
@@ -100,9 +99,10 @@ public class ExportServiceImpl implements ExportService {
         md.append("# ").append(document.getFileName()).append("\n\n");
 
         for (DocumentChunk chunk : chunks) {
-            // 章节标题（## 二级标题）
-            if (chunk.getTitle() != null && !chunk.getTitle().isEmpty()) {
-                md.append("## ").append(chunk.getTitle()).append("\n\n");
+            // 章节标题（## 二级标题）：优先使用翻译后的标题
+            String displayTitle = getDisplayTitle(chunk);
+            if (displayTitle != null && !displayTitle.isEmpty()) {
+                md.append("## ").append(displayTitle).append("\n\n");
             }
             // 正文段落
             md.append(chunk.getTranslation()).append("\n\n");
@@ -136,15 +136,16 @@ public class ExportServiceImpl implements ExportService {
             titleRun.setFontSize(18);
             titleRun.setText(document.getFileName());
 
-            // 遍历 chunk，写入章节标题 + 正文
+            // 遍历 chunk，写入章节标题 + 正文（标题优先使用翻译后的标题）
             for (DocumentChunk chunk : chunks) {
                 // 章节标题：加粗、14号字
-                if (chunk.getTitle() != null && !chunk.getTitle().isEmpty()) {
+                String displayTitle = getDisplayTitle(chunk);
+                if (displayTitle != null && !displayTitle.isEmpty()) {
                     XWPFParagraph headerPara = doc.createParagraph();
                     XWPFRun headerRun = headerPara.createRun();
                     headerRun.setBold(true);
                     headerRun.setFontSize(14);
-                    headerRun.setText(chunk.getTitle());
+                    headerRun.setText(displayTitle);
                 }
 
                 // 正文段落：12号字
@@ -207,10 +208,11 @@ public class ExportServiceImpl implements ExportService {
             pdfDoc.add(new Paragraph(document.getFileName(), titleFont));
             pdfDoc.add(new Paragraph("")); // 空行分隔
 
-            // 遍历 chunk，写入章节标题 + 正文
+            // 遍历 chunk，写入章节标题 + 正文（标题优先使用翻译后的标题）
             for (DocumentChunk chunk : chunks) {
-                if (chunk.getTitle() != null && !chunk.getTitle().isEmpty()) {
-                    pdfDoc.add(new Paragraph(chunk.getTitle(), headingFont));
+                String displayTitle = getDisplayTitle(chunk);
+                if (displayTitle != null && !displayTitle.isEmpty()) {
+                    pdfDoc.add(new Paragraph(displayTitle, headingFont));
                 }
                 pdfDoc.add(new Paragraph(chunk.getTranslation(), contentFont));
                 pdfDoc.add(new Paragraph("")); // 段落间空行
@@ -223,6 +225,48 @@ public class ExportServiceImpl implements ExportService {
             // finally 中关闭文档，确保资源释放
             pdfDoc.close();
         }
+    }
+
+    /**
+     * 获取用于导出的显示标题
+     * <p>
+     * 优先使用翻译后的标题 {@code translatedTitle}，若为空则回退到原文标题 {@code title}。
+     * 对于系统自动生成的合成标题（如"段落N - ..."、"幻灯片N"、"第N页"、"全文"等），
+     * 返回 null 以在导出时跳过，使导出文件与原文一样只包含正文内容。
+     * </p>
+     */
+    private String getDisplayTitle(DocumentChunk chunk) {
+        // 原文标题是合成标题 → 跳过
+        if (isSyntheticTitle(chunk.getTitle())) {
+            return null;
+        }
+        // 优先使用翻译后的标题
+        if (chunk.getTranslatedTitle() != null && !chunk.getTranslatedTitle().isBlank()) {
+            return chunk.getTranslatedTitle();
+        }
+        return chunk.getTitle();
+    }
+
+    /**
+     * 判断标题是否为系统自动生成的合成标题
+     * <p>
+     * 以下模式被视为合成标题：
+     * </p>
+     * <ul>
+     *   <li>"段落N" / "段落N - ..."（DocxParserStrategy / TxtParserStrategy）</li>
+     *   <li>"全文"（DocxParserStrategy / MarkdownParserStrategy）</li>
+     *   <li>"幻灯片 N"（PptxParserStrategy）</li>
+     *   <li>"第 N 页"（PdfParserStrategy）</li>
+     * </ul>
+     */
+    private boolean isSyntheticTitle(String title) {
+        if (title == null || title.isBlank()) {
+            return false;
+        }
+        return title.matches("段落\\s*\\d+.*")
+                || title.equals("全文")
+                || title.matches("幻灯片\\s*\\d+")
+                || title.matches("第\\s*\\d+\\s*页");
     }
 
     /**
