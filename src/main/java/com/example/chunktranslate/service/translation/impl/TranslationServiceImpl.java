@@ -1,6 +1,7 @@
 package com.example.chunktranslate.service.translation.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.example.chunktranslate.common.enums.ChunkStatus;
 import com.example.chunktranslate.common.enums.DocumentStatus;
 import com.example.chunktranslate.common.exception.BusinessException;
@@ -85,10 +86,19 @@ public class TranslationServiceImpl implements TranslationService {
         );
 
         // 4. 标记所有 chunk 为「翻译中」
-        for (DocumentChunk chunk : allChunks) {
-            chunk.setStatus(ChunkStatus.TRANSLATING.getCode());
-            documentChunkMapper.updateById(chunk);
-        }
+        LambdaUpdateWrapper<DocumentChunk> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(DocumentChunk::getDocumentId, request.getDocumentId())
+                .eq(DocumentChunk::getStatus, ChunkStatus.PENDING.getCode())
+                .set(DocumentChunk::getStatus, ChunkStatus.TRANSLATING.getCode());
+        documentChunkMapper.update(null, updateWrapper);
+
+        // 重新查询所有 chunk（按序号排序）
+        allChunks = documentChunkMapper.selectList(
+                new LambdaQueryWrapper<DocumentChunk>()
+                        .eq(DocumentChunk::getDocumentId, request.getDocumentId())
+                        .eq(DocumentChunk::getStatus, ChunkStatus.TRANSLATING.getCode())
+                        .orderByAsc(DocumentChunk::getSequence)
+        );
 
         // 5. 更新文档状态为「翻译中」
         document.setStatus(DocumentStatus.PARSING.getCode());
@@ -256,16 +266,12 @@ public class TranslationServiceImpl implements TranslationService {
         translationTaskExecutor.cancelTranslation(documentId);
 
         // 2. 将仍处于「翻译中」状态的 chunk 回滚为「待翻译」
-        List<DocumentChunk> translatingChunks = documentChunkMapper.selectList(
-                new LambdaQueryWrapper<DocumentChunk>()
-                        .eq(DocumentChunk::getDocumentId, documentId)
-                        .eq(DocumentChunk::getStatus, ChunkStatus.TRANSLATING.getCode())
-        );
-        for (DocumentChunk chunk : translatingChunks) {
-            chunk.setStatus(ChunkStatus.PENDING.getCode());
-            documentChunkMapper.updateById(chunk);
-        }
+        LambdaUpdateWrapper<DocumentChunk> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(DocumentChunk::getDocumentId, documentId)
+                .eq(DocumentChunk::getStatus, ChunkStatus.TRANSLATING.getCode())
+                .set(DocumentChunk::getStatus, ChunkStatus.PENDING.getCode());
+        int rollbackCount = documentChunkMapper.update(null, updateWrapper);
 
-        log.info("翻译任务已中止: documentId={}, 回滚chunk数={}", documentId, translatingChunks.size());
+        log.info("翻译任务已中止: documentId={}, 回滚chunk数={}", documentId, rollbackCount);
     }
 }
