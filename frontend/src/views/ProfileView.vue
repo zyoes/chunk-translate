@@ -8,8 +8,7 @@
       </div>
       <div class="header-right">
         <el-button @click="$router.push('/')">返回翻译</el-button>
-        <span class="user-name">{{ userInfo?.username }}</span>
-        <el-button type="default" size="small" @click="handleLogout">退出</el-button>
+        <el-button type="default" @click="handleLogout">退出</el-button>
       </div>
     </header>
 
@@ -17,7 +16,21 @@
       <!-- Sidebar: User Info Card -->
       <aside class="user-sidebar">
         <div class="user-card">
-          <el-avatar :size="72" :src="userInfo?.avatarUrl" />
+          <el-upload
+            class="sidebar-avatar-upload"
+            :auto-upload="false"
+            :show-file-list="false"
+            accept="image/*"
+            :on-change="handleSidebarAvatarChange"
+          >
+            <div class="sidebar-avatar-box">
+              <img v-if="userInfo?.avatarUrl" :src="userInfo.avatarUrl" class="sidebar-avatar-img" />
+              <el-avatar v-else :size="72" />
+              <div class="sidebar-avatar-overlay">
+                <el-icon :size="20" color="#fff"><Camera /></el-icon>
+              </div>
+            </div>
+          </el-upload>
           <h2>{{ userInfo?.username }}</h2>
           <p class="user-email">{{ userInfo?.email }}</p>
           <el-tag
@@ -26,6 +39,11 @@
           >
             {{ userInfo?.role === 'admin' ? '管理员' : '普通用户' }}
           </el-tag>
+          <div style="margin-top: 8px;">
+            <el-button type="primary" size="small" @click="openEditDialog">
+              编辑资料
+            </el-button>
+          </div>
         </div>
       </aside>
 
@@ -63,19 +81,101 @@
         </div>
       </main>
     </div>
+
+    <!-- 编辑资料弹窗 -->
+    <el-dialog v-model="showEditDialog" title="编辑个人资料" width="420px" destroy-on-close>
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-position="top">
+        <el-form-item label="用户名" prop="username">
+          <el-input v-model="editForm.username" placeholder="3-50个字符" />
+        </el-form-item>
+        <el-form-item label="头像" class="avatar-form-item">
+          <el-upload
+            ref="uploadRef"
+            class="avatar-uploader"
+            :auto-upload="false"
+            :show-file-list="false"
+            accept="image/*"
+            :on-change="handleAvatarChange"
+          >
+            <div class="avatar-box" :class="{ uploading }">
+              <img v-if="editForm.avatarUrl" :src="editForm.avatarUrl" class="avatar-img" />
+              <el-icon v-else :size="28" color="#c0c4cc"><Plus /></el-icon>
+              <div v-if="editForm.avatarUrl" class="avatar-overlay">
+                <el-icon :size="20" color="#fff"><Camera /></el-icon>
+              </div>
+            </div>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showEditDialog = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSaveProfile">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getCurrentUser } from '../api/auth'
+import { ElMessage } from 'element-plus'
+import { Plus, Camera } from '@element-plus/icons-vue'
+import { getCurrentUser, updateProfile, uploadAvatar } from '../api/auth'
 import request from '../api/request'
 
 const router = useRouter()
 const loading = ref(true)
 const userInfo = ref(null)
 const tasks = ref([])
+
+// ===== 编辑资料 =====
+const showEditDialog = ref(false)
+const saving = ref(false)
+const editFormRef = ref(null)
+const editForm = reactive({ username: '', avatarUrl: '' })
+const editRules = {}
+
+const uploading = ref(false)
+
+async function handleSidebarAvatarChange(file) {
+  await handleAvatarChange(file)
+}
+
+async function handleAvatarChange(file) {
+  uploading.value = true
+  try {
+    const res = await uploadAvatar(file.raw)
+    editForm.avatarUrl = res.data.avatarUrl
+    userInfo.value = res.data
+    ElMessage.success('头像已更新')
+  } catch (e) {
+    console.error('头像上传失败', e)
+  } finally {
+    uploading.value = false
+  }
+}
+
+function openEditDialog() {
+  editForm.username = userInfo.value?.username || ''
+  editForm.avatarUrl = userInfo.value?.avatarUrl || ''
+  showEditDialog.value = true
+}
+
+async function handleSaveProfile() {
+  const valid = await editFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  saving.value = true
+  try {
+    const res = await updateProfile(editForm)
+    userInfo.value = res.data
+    showEditDialog.value = false
+    ElMessage.success('资料已更新')
+  } catch (e) {
+    console.error('保存失败', e)
+  } finally {
+    saving.value = false
+  }
+}
 
 onMounted(async () => {
   fetchUserInfo()
@@ -161,12 +261,6 @@ function formatTime(time) {
   align-items: center;
   gap: 12px;
 }
-.user-name {
-  font-size: 14px;
-  color: #1e293b;
-  font-weight: 500;
-}
-
 /* ===== Main ===== */
 .main-content {
   flex: 1;
@@ -182,6 +276,39 @@ function formatTime(time) {
   padding: 32px 24px;
   flex-shrink: 0;
 }
+.sidebar-avatar-upload :deep(.el-upload) {
+  border: none;
+  display: block;
+}
+.sidebar-avatar-box {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto;
+}
+.sidebar-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.sidebar-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.sidebar-avatar-box:hover .sidebar-avatar-overlay {
+  opacity: 1;
+}
 .user-card {
   text-align: center;
 }
@@ -193,7 +320,7 @@ function formatTime(time) {
 .user-email {
   font-size: 13px;
   color: #94a3b8;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 /* ===== History ===== */
@@ -254,6 +381,50 @@ function formatTime(time) {
   align-items: center;
   gap: 16px;
   flex-shrink: 0;
+}
+.avatar-form-item :deep(.el-form-item__content) {
+  justify-content: center;
+}
+.avatar-uploader :deep(.el-upload) {
+  border: none;
+}
+.avatar-box {
+  width: 100px;
+  height: 100px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.avatar-box:hover {
+  border-color: #1677ff;
+}
+.avatar-box.uploading {
+  pointer-events: none;
+  opacity: .6;
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.avatar-box:hover .avatar-overlay {
+  opacity: 1;
 }
 .history-time {
   font-size: 12px;

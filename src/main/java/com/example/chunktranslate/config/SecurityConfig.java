@@ -43,6 +43,7 @@ public class SecurityConfig {
                                 "/api/auth/refresh"
                         ).permitAll()
                         .requestMatchers("/oauth2/**", "/login/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs", "/v3/api-docs/**"
@@ -56,6 +57,8 @@ public class SecurityConfig {
                         ).permitAll()
                         // 需登录接口
                         .requestMatchers("/api/auth/me",
+                                "/api/auth/profile",
+                                "/api/auth/avatar",
                                 "/api/translation/history",
                                 "/api/translation/history/**"
                         ).authenticated()

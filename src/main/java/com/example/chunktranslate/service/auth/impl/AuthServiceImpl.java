@@ -9,18 +9,22 @@ import com.example.chunktranslate.dto.auth.AuthResponse;
 import com.example.chunktranslate.dto.auth.LoginRequest;
 import com.example.chunktranslate.dto.auth.RefreshTokenRequest;
 import com.example.chunktranslate.dto.auth.RegisterRequest;
+import com.example.chunktranslate.dto.auth.UpdateProfileRequest;
 import com.example.chunktranslate.dto.auth.UserInfoResponse;
 import com.example.chunktranslate.entity.RefreshToken;
 import com.example.chunktranslate.entity.User;
 import com.example.chunktranslate.mapper.RefreshTokenMapper;
 import com.example.chunktranslate.mapper.UserMapper;
 import com.example.chunktranslate.security.JwtTokenProvider;
+import com.example.chunktranslate.security.UserContext;
 import com.example.chunktranslate.service.auth.AuthService;
+import com.example.chunktranslate.util.FileStorageUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 
@@ -33,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenMapper refreshTokenMapper;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final FileStorageUtil fileStorageUtil;
 
     @Override
     @Transactional
@@ -131,6 +136,51 @@ public class AuthServiceImpl implements AuthService {
         resp.setAvatarUrl(user.getAvatarUrl());
         resp.setRole(user.getRole());
         return resp;
+    }
+
+    @Override
+    public UserInfoResponse updateProfile(Long userId, UpdateProfileRequest request) {
+        // 验证只能修改自己的资料
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null || !currentUserId.equals(userId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN);
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            User existing = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                    .eq(User::getUsername, request.getUsername())
+                    .ne(User::getId, userId));
+            if (existing != null) {
+                throw new BusinessException(ResultCode.USERNAME_ALREADY_EXISTS);
+            }
+            user.setUsername(request.getUsername());
+        }
+        if (request.getAvatarUrl() != null) {
+            user.setAvatarUrl(request.getAvatarUrl());
+        }
+        userMapper.updateById(user);
+        log.info("用户资料更新: userId={}, username={}", userId, user.getUsername());
+        return getCurrentUser(userId);
+    }
+
+    @Override
+    public UserInfoResponse updateAvatar(Long userId, MultipartFile file) {
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null || !currentUserId.equals(userId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN);
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        String path = fileStorageUtil.store(file);
+        user.setAvatarUrl("/uploads/" + path);
+        userMapper.updateById(user);
+        log.info("用户头像更新: userId={}, avatar={}", userId, path);
+        return getCurrentUser(userId);
     }
 
     private AuthResponse generateAuthResponse(User user) {

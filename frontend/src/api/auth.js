@@ -14,3 +14,17 @@ export function login(data) {
 export function getCurrentUser() {
   return request.get('/auth/me')
 }
+
+// 更新个人资料
+export function updateProfile(data) {
+  return request.put('/auth/profile', data)
+}
+
+// 上传头像
+export function uploadAvatar(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/auth/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}

@@ -5,6 +5,7 @@ import com.example.chunktranslate.dto.auth.AuthResponse;
 import com.example.chunktranslate.dto.auth.LoginRequest;
 import com.example.chunktranslate.dto.auth.RefreshTokenRequest;
 import com.example.chunktranslate.dto.auth.RegisterRequest;
+import com.example.chunktranslate.dto.auth.UpdateProfileRequest;
 import com.example.chunktranslate.dto.auth.UserInfoResponse;
 import com.example.chunktranslate.security.UserContext;
 import com.example.chunktranslate.service.auth.AuthService;
@@ -14,9 +15,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "用户认证", description = "注册、登录、令牌刷新、当前用户信息")
 @RestController
@@ -49,5 +53,19 @@ public class AuthController {
     public Result<UserInfoResponse> me() {
         Long userId = UserContext.getUserId();
         return Result.success(authService.getCurrentUser(userId));
+    }
+
+    @Operation(summary = "更新个人资料")
+    @PutMapping("/profile")
+    public Result<UserInfoResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        Long userId = UserContext.getUserId();
+        return Result.success(authService.updateProfile(userId, request));
+    }
+
+    @Operation(summary = "上传头像")
+    @PostMapping("/avatar")
+    public Result<UserInfoResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        Long userId = UserContext.getUserId();
+        return Result.success(authService.updateAvatar(userId, file));
     }
 }
