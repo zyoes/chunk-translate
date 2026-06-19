@@ -202,7 +202,7 @@ public class TranslationServiceImpl implements TranslationService {
         // 1. 查询分块
         DocumentChunk chunk = documentChunkMapper.selectById(chunkId);
         if (chunk == null) {
-            throw new BusinessException(ResultCode.DOCUMENT_NOT_FOUND);
+            throw new BusinessException(ResultCode.CHUNK_NOT_FOUND);
         }
 
         // 2. 更新 document_chunk 表的译文
@@ -233,7 +233,7 @@ public class TranslationServiceImpl implements TranslationService {
     public void updateChunkSource(Long chunkId, String content) {
         DocumentChunk chunk = documentChunkMapper.selectById(chunkId);
         if (chunk == null) {
-            throw new BusinessException(ResultCode.DOCUMENT_NOT_FOUND);
+            throw new BusinessException(ResultCode.CHUNK_NOT_FOUND);
         }
 
         chunk.setContent(content);
