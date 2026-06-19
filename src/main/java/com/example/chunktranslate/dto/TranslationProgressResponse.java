@@ -73,4 +73,8 @@ public class TranslationProgressResponse {
         @Schema(description = "失败原因（仅失败时有值）")
         private String errorMsg;
     }
+
+    @Schema(description = "翻译任务ID")
+    private Long taskId;
+
 }
