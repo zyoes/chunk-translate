@@ -2,19 +2,23 @@ package com.example.chunktranslate.service.translation.impl;
 
 import com.example.chunktranslate.common.enums.ChunkStatus;
 import com.example.chunktranslate.common.enums.DocumentStatus;
+import com.example.chunktranslate.common.enums.TaskStatus;
 import com.example.chunktranslate.common.enums.TranslationStatus;
 import com.example.chunktranslate.entity.Document;
 import com.example.chunktranslate.entity.DocumentChunk;
 import com.example.chunktranslate.entity.TranslationResult;
+import com.example.chunktranslate.entity.TranslationTask;
 import com.example.chunktranslate.mapper.DocumentChunkMapper;
 import com.example.chunktranslate.mapper.DocumentMapper;
 import com.example.chunktranslate.mapper.TranslationResultMapper;
+import com.example.chunktranslate.mapper.TranslationTaskMapper;
 import com.example.chunktranslate.service.translation.ALimtTranslationClient;
 import com.example.chunktranslate.service.translation.DeepSeekPolishClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,6 +57,7 @@ public class TranslationTaskExecutor {
     private final ALimtTranslationClient alimtClient;
     private final DeepSeekPolishClient deepSeekPolishClient;
     private final Executor translationExecutor;
+    private final TranslationTaskMapper translationTaskMapper;
 
     public TranslationTaskExecutor(
             DocumentMapper documentMapper,
@@ -60,13 +65,15 @@ public class TranslationTaskExecutor {
             TranslationResultMapper translationResultMapper,
             ALimtTranslationClient alimtClient,
             DeepSeekPolishClient deepSeekPolishClient,
-            @Qualifier("translationExecutor") Executor translationExecutor) {
+            @Qualifier("translationExecutor") Executor translationExecutor,
+            TranslationTaskMapper translationTaskMapper) {
         this.documentMapper = documentMapper;
         this.documentChunkMapper = documentChunkMapper;
         this.translationResultMapper = translationResultMapper;
         this.alimtClient = alimtClient;
         this.deepSeekPolishClient = deepSeekPolishClient;
         this.translationExecutor = translationExecutor;
+        this.translationTaskMapper = translationTaskMapper;
     }
 
     /**
@@ -79,10 +86,14 @@ public class TranslationTaskExecutor {
      */
     private final ConcurrentHashMap<Long, AtomicBoolean> cancelledTasks = new ConcurrentHashMap<>();
 
-    /** DeepSeek 润色的最大文本长度（超过则跳过润色，直接用机翻译文） */
+    /**
+     * DeepSeek 润色的最大文本长度（超过则跳过润色，直接用机翻译文）
+     */
     private static final int MAX_POLISH_LENGTH = 8000;
 
-    /** 每个 chunk 的最大重试次数 */
+    /**
+     * 每个 chunk 的最大重试次数
+     */
     private static final int MAX_RETRY = 3;
 
     /**
@@ -98,7 +109,7 @@ public class TranslationTaskExecutor {
      * @param sourceLang 源语言代码（如 "en"）
      * @param targetLang 目标语言代码（如 "zh"）
      */
-    public void doTranslate(Long documentId, List<DocumentChunk> chunks,
+    public void doTranslate(Long documentId, Long taskId, List<DocumentChunk> chunks,
                             String sourceLang, String targetLang) {
         log.info("开始翻译任务: documentId={}, 总chunk数={}", documentId, chunks.size());
 
@@ -123,22 +134,35 @@ public class TranslationTaskExecutor {
                     },
                     translationExecutor
             ).thenAccept(success -> {
-                        if (success == null) {
-                            // 已取消的 chunk，不计数
-                            return;
-                        }
-                        if (success) {
-                            successCount.incrementAndGet();
-                        } else {
-                            failCount.incrementAndGet();
-                        }
+                if (success == null) {
+                    // 已取消的 chunk，不计数
+                    return;
+                }
+                if (success) {
+                    successCount.incrementAndGet();
+                } else {
+                    failCount.incrementAndGet();
+                }
 
-                        // 当所有 chunk 都处理完毕时，更新文档最终状态
-                        if (successCount.get() + failCount.get() == total) {
-                            updateDocumentStatus(documentId, failCount.get() == 0);
-                            cancelledTasks.remove(documentId);  // 清理标志
-                        }
-                    });
+                // 当所有 chunk 都处理完毕时，更新文档最终状态
+                if (successCount.get() + failCount.get() == total) {
+                    // 更新翻译任务进度
+                    TranslationTask task = translationTaskMapper.selectById(taskId);
+                    if (task != null) {
+                        task.setCompletedChunks(successCount.get());
+                        task.setStatus(failCount.get() == 0
+                                ? TaskStatus.COMPLETED.getCode()
+                                : TaskStatus.FAILED.getCode());
+                        task.setCompletedAt(LocalDateTime.now());
+                        translationTaskMapper.updateById(task);
+                    }
+                    updateDocumentStatus(documentId, failCount.get() == 0);
+                    cancelledTasks.remove(documentId);
+                }
+
+                log.info("翻译任务进度: documentId={}, taskId={}, completedChunks={}, totalChunks={}",
+                        documentId, taskId, successCount.get(), total);
+            });
         }
     }
 

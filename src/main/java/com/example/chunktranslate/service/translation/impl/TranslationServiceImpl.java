@@ -4,16 +4,20 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.example.chunktranslate.common.enums.ChunkStatus;
 import com.example.chunktranslate.common.enums.DocumentStatus;
+import com.example.chunktranslate.common.enums.TaskStatus;
 import com.example.chunktranslate.common.exception.BusinessException;
 import com.example.chunktranslate.common.result.ResultCode;
-import com.example.chunktranslate.dto.TranslationProgressResponse;
-import com.example.chunktranslate.dto.TranslationStartRequest;
+import com.example.chunktranslate.dto.*;
 import com.example.chunktranslate.entity.Document;
 import com.example.chunktranslate.entity.DocumentChunk;
 import com.example.chunktranslate.entity.TranslationResult;
+import com.example.chunktranslate.entity.TranslationTask;
 import com.example.chunktranslate.mapper.DocumentChunkMapper;
 import com.example.chunktranslate.mapper.DocumentMapper;
 import com.example.chunktranslate.mapper.TranslationResultMapper;
+import com.example.chunktranslate.mapper.TranslationTaskMapper;
+import com.example.chunktranslate.security.UserContext;
+import com.example.chunktranslate.service.document.DocumentService;
 import com.example.chunktranslate.service.translation.TranslationService;
 import com.example.chunktranslate.util.ParserUtil;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,6 +59,9 @@ public class TranslationServiceImpl implements TranslationService {
     private final TranslationResultMapper translationResultMapper;
     private final TranslationTaskExecutor translationTaskExecutor;
     private final ParserUtil parserUtil;
+    private final TranslationTaskMapper translationTaskMapper;
+    private final DocumentService documentService;
+
 
     /**
      * 启动翻译任务
@@ -102,13 +110,25 @@ public class TranslationServiceImpl implements TranslationService {
                         .orderByAsc(DocumentChunk::getSequence)
         );
 
+        // 创建翻译任务记录（用户级历史）
+        TranslationTask task = new TranslationTask();
+        task.setUserId(UserContext.getUserId());
+        task.setDocumentId(request.getDocumentId());
+        task.setSourceLang(request.getSourceLang());
+        task.setTargetLang(request.getTargetLang());
+        task.setStatus(TaskStatus.IN_PROGRESS.getCode());
+        task.setTotalChunks(allChunks.size());
+        task.setCompletedChunks(0);
+        task.setStartedAt(LocalDateTime.now());
+        translationTaskMapper.insert(task);
+
         // 5. 更新文档状态为「翻译中」
         document.setStatus(DocumentStatus.TRANSLATING.getCode());
         documentMapper.updateById(document);  // Bug修复：补上 updateById，否则状态不会写入DB
 
         // 6. 通过独立的 Bean 调用异步方法（走 Spring 代理，@Async 生效）
         translationTaskExecutor.doTranslate(
-                request.getDocumentId(), allChunks,
+                request.getDocumentId(), task.getId(), allChunks,
                 request.getSourceLang(), request.getTargetLang());
 
         // 7. 立即返回初始进度响应（不等待翻译完成）
@@ -120,6 +140,8 @@ public class TranslationServiceImpl implements TranslationService {
         response.setTotalChunks(allChunks.size());
         response.setCompletedChunks(0);
         response.setProgressPercent(0);
+        response.setTaskId(task.getId());
+
         return response;
     }
 
@@ -277,4 +299,76 @@ public class TranslationServiceImpl implements TranslationService {
 
         log.info("翻译任务已中止: documentId={}, 回滚chunk数={}", documentId, rollbackCount);
     }
+
+    @Override
+    public List<TranslationHistoryResponse> getHistory() {
+        Long userId = UserContext.getUserId();
+
+        List<TranslationTask> tasks = translationTaskMapper.selectList(
+                new LambdaQueryWrapper<TranslationTask>()
+                        .eq(TranslationTask::getUserId, userId)
+                        .orderByDesc(TranslationTask::getCreatedAt)
+        );
+
+        return tasks.stream().map(task -> {
+            TranslationHistoryResponse resp = new TranslationHistoryResponse();
+            resp.setTaskId(task.getId());
+            resp.setDocumentId(task.getDocumentId());
+            resp.setSourceLang(task.getSourceLang());
+            resp.setTargetLang(task.getTargetLang());
+            resp.setStatus(task.getStatus());
+            resp.setTotalChunks(task.getTotalChunks());
+            resp.setCompletedChunks(task.getCompletedChunks());
+            resp.setStartedAt(task.getStartedAt());
+            resp.setCompletedAt(task.getCompletedAt());
+            resp.setCreatedAt(task.getCreatedAt());
+
+            // 计算进度
+            if (task.getTotalChunks() != null && task.getTotalChunks() > 0) {
+                resp.setProgressPercent((int) (task.getCompletedChunks() * 100.0 / task.getTotalChunks()));
+            }
+
+            // 拼接文档名
+            Document doc = documentMapper.selectById(task.getDocumentId());
+            if (doc != null) {
+                resp.setDocumentName(doc.getFileName());
+            }
+
+            return resp;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public TranslationTaskDetailResponse getTaskDetail(Long taskId) {
+        Long userId = UserContext.getUserId();
+        TranslationTask task = translationTaskMapper.selectById(taskId);
+        if (task == null || !task.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.NOT_FOUND);
+        }
+
+        // 构建任务摘要
+        TranslationHistoryResponse taskResp = new TranslationHistoryResponse();
+        taskResp.setTaskId(task.getId());
+        taskResp.setDocumentId(task.getDocumentId());
+        taskResp.setSourceLang(task.getSourceLang());
+        taskResp.setTargetLang(task.getTargetLang());
+        taskResp.setStatus(task.getStatus());
+        taskResp.setTotalChunks(task.getTotalChunks());
+        taskResp.setCompletedChunks(task.getCompletedChunks());
+        taskResp.setStartedAt(task.getStartedAt());
+        taskResp.setCompletedAt(task.getCompletedAt());
+        taskResp.setCreatedAt(task.getCreatedAt());
+        if (task.getTotalChunks() != null && task.getTotalChunks() > 0) {
+            taskResp.setProgressPercent((int) (task.getCompletedChunks() * 100.0 / task.getTotalChunks()));
+        }
+
+        // 拼文档详情
+        DocumentDetailResponse docDetail = documentService.getDocumentDetail(task.getDocumentId());
+
+        TranslationTaskDetailResponse resp = new TranslationTaskDetailResponse();
+        resp.setTask(taskResp);
+        resp.setDocument(docDetail);
+        return resp;
+    }
+
 }

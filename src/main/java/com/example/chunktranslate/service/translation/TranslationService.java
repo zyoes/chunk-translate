@@ -1,7 +1,11 @@
 package com.example.chunktranslate.service.translation;
 
+import com.example.chunktranslate.dto.TranslationHistoryResponse;
 import com.example.chunktranslate.dto.TranslationProgressResponse;
 import com.example.chunktranslate.dto.TranslationStartRequest;
+import com.example.chunktranslate.dto.TranslationTaskDetailResponse;
+
+import java.util.List;
 
 /**
  * 翻译服务接口
@@ -77,4 +81,20 @@ public interface TranslationService {
      * @param documentId 文档ID
      */
     void stopTranslation(Long documentId);
+
+    /**
+     * 查询当前用户的翻译历史
+     *
+     * @return 翻译历史列表（按时间倒序）
+     */
+    List<TranslationHistoryResponse> getHistory();
+
+    /**
+     * 查询翻译任务详情
+     *
+     * @param taskId 翻译任务ID
+     * @return 任务详情（含文档信息）
+     */
+    TranslationTaskDetailResponse getTaskDetail(Long taskId);
+
 }
