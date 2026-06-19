@@ -137,10 +137,10 @@
               <h2 class="panel-title" :title="selectedChunk.title">{{ selectedChunk.title }}</h2>
               <textarea
                 v-if="editingField === 'source'"
+                ref="sourceTextareaRef"
                 v-model="editText"
                 class="edit-textarea source-edit"
                 placeholder="在此修改原文..."
-                @blur="handleEditBlur"
               />
               <p
                 v-else
@@ -178,10 +178,10 @@
               <h2 class="panel-title" :title="selectedChunk.title">{{ translatedTitle }}</h2>
               <textarea
                 v-if="editingField === 'translation'"
+                ref="transTextareaRef"
                 v-model="editText"
                 class="edit-textarea"
                 placeholder="在此修改译文..."
-                @blur="handleEditBlur"
               />
               <p
                 v-else
@@ -293,6 +293,8 @@ const selectedNode = ref(null)
 // 校对编辑状态：editingField = null | 'source' | 'translation'
 const editingField = ref(null)
 const editText = ref('')
+const sourceTextareaRef = ref(null)
+const transTextareaRef = ref(null)
 
 let progressTimer = null
 let editCancelled = false
@@ -560,15 +562,29 @@ function cancelEdit() {
   editingField.value = null
 }
 
-// 失焦时自动保存（mousedown 于取消按钮先触发，设 editCancelled 标记避免误保存）
-function handleEditBlur() {
+// 点击编辑区外部时自动保存
+function handleDocumentClick(e) {
   if (!editingField.value) return
+  const el = editingField.value === 'source' ? sourceTextareaRef.value : transTextareaRef.value
+  if (!el) return
+  // 点击了 textarea 本身或保存/取消按钮，不处理
+  if (el.contains(e.target)) return
+  if (e.target.closest('.el-button')) return
   if (editCancelled) {
     editCancelled = false
     return
   }
   saveEdit()
 }
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick, true)
+  stopPolling()
+})
 
 async function saveEdit() {
   const chunk = selectedChunk.value
@@ -609,7 +625,6 @@ function getStatusText(status) {
   return { 0: '待翻译', 1: '翻译中', 2: '已完成', 3: '失败' }[status] || ''
 }
 
-onBeforeUnmount(() => stopPolling())
 </script>
 
 <style scoped>
