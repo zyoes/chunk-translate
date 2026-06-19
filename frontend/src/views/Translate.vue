@@ -103,7 +103,7 @@
               </el-button>
               <template v-if="editingField === 'source'">
                 <el-button size="small" type="success" :icon="Check" @click="saveEdit">保存</el-button>
-                <el-button size="small" :icon="Close" @click="cancelEdit">取消</el-button>
+                <el-button size="small" :icon="Close" @mousedown="cancelEdit">取消</el-button>
               </template>
             </div>
           </div>
@@ -144,7 +144,7 @@
               </el-button>
               <template v-if="editingField === 'translation'">
                 <el-button size="small" type="success" :icon="Check" @click="saveEdit">保存</el-button>
-                <el-button size="small" :icon="Close" @click="cancelEdit">取消</el-button>
+                <el-button size="small" :icon="Close" @mousedown="cancelEdit">取消</el-button>
               </template>
             </div>
           </div>
@@ -265,6 +265,7 @@ const editingField = ref(null)
 const editText = ref('')
 
 let progressTimer = null
+let editCancelled = false
 
 // ==================== 计算属性 ====================
 const totalChunks = computed(() => chunks.value.length)
@@ -465,28 +466,30 @@ function handleNodeClick(data) {
 
 // ==================== 校对编辑 ====================
 function startEditSource() {
+  editCancelled = false
   editText.value = selectedChunk.value?.content || ''
   editingField.value = 'source'
 }
 
 function startEditTranslation() {
+  editCancelled = false
   editText.value = selectedChunk.value?.translation || ''
   editingField.value = 'translation'
 }
 
 function cancelEdit() {
+  editCancelled = true
   editingField.value = null
 }
 
-// 失焦时自动保存（如果点击的是取消按钮则不保存）
+// 失焦时自动保存（mousedown 于取消按钮先触发，设 editCancelled 标记避免误保存）
 function handleEditBlur() {
   if (!editingField.value) return
-  // 延迟检查：如果焦点转移到了取消按钮，cancelEdit 会先清空 editingField
-  setTimeout(() => {
-    if (editingField.value) {
-      saveEdit()
-    }
-  }, 150)
+  if (editCancelled) {
+    editCancelled = false
+    return
+  }
+  saveEdit()
 }
 
 async function saveEdit() {
