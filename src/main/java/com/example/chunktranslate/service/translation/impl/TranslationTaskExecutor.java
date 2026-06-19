@@ -3,8 +3,6 @@ package com.example.chunktranslate.service.translation.impl;
 import com.example.chunktranslate.common.enums.ChunkStatus;
 import com.example.chunktranslate.common.enums.DocumentStatus;
 import com.example.chunktranslate.common.enums.TranslationStatus;
-import com.example.chunktranslate.common.result.ResultCode;
-import com.example.chunktranslate.common.exception.BusinessException;
 import com.example.chunktranslate.entity.Document;
 import com.example.chunktranslate.entity.DocumentChunk;
 import com.example.chunktranslate.entity.TranslationResult;
@@ -13,9 +11,7 @@ import com.example.chunktranslate.mapper.DocumentMapper;
 import com.example.chunktranslate.mapper.TranslationResultMapper;
 import com.example.chunktranslate.service.translation.ALimtTranslationClient;
 import com.example.chunktranslate.service.translation.DeepSeekPolishClient;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -49,7 +45,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class TranslationTaskExecutor {
 
     private final DocumentMapper documentMapper;
@@ -57,10 +52,22 @@ public class TranslationTaskExecutor {
     private final TranslationResultMapper translationResultMapper;
     private final ALimtTranslationClient alimtClient;
     private final DeepSeekPolishClient deepSeekPolishClient;
+    private final Executor translationExecutor;
 
-    @Autowired
-    @Qualifier("translationExecutor")
-    private Executor translationExecutor;
+    public TranslationTaskExecutor(
+            DocumentMapper documentMapper,
+            DocumentChunkMapper documentChunkMapper,
+            TranslationResultMapper translationResultMapper,
+            ALimtTranslationClient alimtClient,
+            DeepSeekPolishClient deepSeekPolishClient,
+            @Qualifier("translationExecutor") Executor translationExecutor) {
+        this.documentMapper = documentMapper;
+        this.documentChunkMapper = documentChunkMapper;
+        this.translationResultMapper = translationResultMapper;
+        this.alimtClient = alimtClient;
+        this.deepSeekPolishClient = deepSeekPolishClient;
+        this.translationExecutor = translationExecutor;
+    }
 
     /**
      * 翻译任务取消标志映射表
