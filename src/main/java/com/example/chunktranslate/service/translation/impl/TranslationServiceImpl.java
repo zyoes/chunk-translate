@@ -158,7 +158,7 @@ public class TranslationServiceImpl implements TranslationService {
                     info.setSequence(chunk.getSequence());
                     info.setTitle(chunk.getTitle());
                     info.setStatus(chunk.getStatus());
-                    info.setStatusDesc(ChunkStatus.values()[chunk.getStatus()].getDesc());
+                    info.setStatusDesc(ChunkStatus.fromCode(chunk.getStatus()).getDesc());
                     info.setTokenCount(chunk.getTokenCount());
                     // 原文预览：截取前 100 字符
                     info.setSourcePreview(parserUtil.truncate(chunk.getContent(), 100));

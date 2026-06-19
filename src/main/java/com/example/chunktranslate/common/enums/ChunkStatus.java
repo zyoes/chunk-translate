@@ -16,4 +16,19 @@ public enum ChunkStatus {
         this.code = code;
         this.desc = desc;
     }
+
+    /**
+     * 根据code获取枚举
+     *
+     * @param code 状态码
+     * @return 对应的枚举值，找不到时返回 PENDING
+     */
+    public static ChunkStatus fromCode(int code) {
+        for (ChunkStatus status : values()) {
+            if (status.code == code) {
+                return status;
+            }
+        }
+        return PENDING;
+    }
 }
