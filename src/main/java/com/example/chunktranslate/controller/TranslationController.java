@@ -1,8 +1,10 @@
 package com.example.chunktranslate.controller;
 
 import com.example.chunktranslate.common.result.Result;
+import com.example.chunktranslate.dto.TranslationHistoryResponse;
 import com.example.chunktranslate.dto.TranslationProgressResponse;
 import com.example.chunktranslate.dto.TranslationStartRequest;
+import com.example.chunktranslate.dto.TranslationTaskDetailResponse;
 import com.example.chunktranslate.service.translation.TranslationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -123,4 +126,29 @@ public class TranslationController {
         translationService.stopTranslation(documentId);
         return Result.success();
     }
+
+    /**
+     * 获取翻译历史列表
+     *
+     * @return 翻译历史响应列表
+     */
+    @Operation(summary = "翻译历史列表", description = "返回当前用户的所有翻译任务记录")
+    @GetMapping("/history")
+    public Result<List<TranslationHistoryResponse>> getHistory() {
+        return Result.success(translationService.getHistory());
+    }
+
+    /**
+     * 获取翻译任务详情
+     *
+     * @param taskId 翻译任务ID
+     * @return 翻译任务详情响应
+     */
+    @Operation(summary = "翻译任务详情", description = "返回单个翻译任务详情（含文档信息）")
+    @GetMapping("/history/{taskId}")
+    public Result<TranslationTaskDetailResponse> getTaskDetail(
+            @Parameter(description = "翻译任务ID") @PathVariable Long taskId) {
+        return Result.success(translationService.getTaskDetail(taskId));
+    }
+
 }
