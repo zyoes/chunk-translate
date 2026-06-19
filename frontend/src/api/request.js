@@ -6,6 +6,18 @@ const request = axios.create({
   timeout: 30000
 })
 
+// 请求拦截器：自动携带 JWT
+request.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('accessToken')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  error => Promise.reject(error)
+)
+
 // 响应拦截器：统一处理后端 Result<T> 格式
 request.interceptors.response.use(
   response => {

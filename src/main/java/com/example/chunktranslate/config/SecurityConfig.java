@@ -33,24 +33,32 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                        session.sessionCreationPolicy(SessionCreationPolicy.ALWAYS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // 公开接口
+                        // 公开接口（无需登录）
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/refresh"
                         ).permitAll()
-                        // OAuth2 端点（Spring 自动注册）
                         .requestMatchers("/oauth2/**", "/login/**").permitAll()
-                        // Swagger / API 文档
                         .requestMatchers(
                                 "/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs", "/v3/api-docs/**"
                         ).permitAll()
-                        // 其余 /api/** 需要认证
-                        .requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/api/document/**",
+                                "/api/translation/start",
+                                "/api/translation/progress/**",
+                                "/api/translation/stop/**",
+                                "/api/translation/chunk/**",
+                                "/api/export/**"
+                        ).permitAll()
+                        // 需登录接口
+                        .requestMatchers("/api/auth/me",
+                                "/api/translation/history",
+                                "/api/translation/history/**"
+                        ).authenticated()
                         .anyRequest().permitAll()
                 )
                 .oauth2Login(oauth2 -> oauth2

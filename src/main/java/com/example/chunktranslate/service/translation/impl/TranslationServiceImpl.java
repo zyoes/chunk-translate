@@ -110,25 +110,30 @@ public class TranslationServiceImpl implements TranslationService {
                         .orderByAsc(DocumentChunk::getSequence)
         );
 
-        // 创建翻译任务记录（用户级历史）
-        TranslationTask task = new TranslationTask();
-        task.setUserId(UserContext.getUserId());
-        task.setDocumentId(request.getDocumentId());
-        task.setSourceLang(request.getSourceLang());
-        task.setTargetLang(request.getTargetLang());
-        task.setStatus(TaskStatus.IN_PROGRESS.getCode());
-        task.setTotalChunks(allChunks.size());
-        task.setCompletedChunks(0);
-        task.setStartedAt(LocalDateTime.now());
-        translationTaskMapper.insert(task);
+        // 创建翻译任务记录（仅登录用户）
+        Long taskId = null;
+        Long userId = UserContext.getUserId();
+        if (userId != null) {
+            TranslationTask task = new TranslationTask();
+            task.setUserId(userId);
+            task.setDocumentId(request.getDocumentId());
+            task.setSourceLang(request.getSourceLang());
+            task.setTargetLang(request.getTargetLang());
+            task.setStatus(TaskStatus.IN_PROGRESS.getCode());
+            task.setTotalChunks(allChunks.size());
+            task.setCompletedChunks(0);
+            task.setStartedAt(LocalDateTime.now());
+            translationTaskMapper.insert(task);
+            taskId = task.getId();
+        }
 
         // 5. 更新文档状态为「翻译中」
         document.setStatus(DocumentStatus.TRANSLATING.getCode());
-        documentMapper.updateById(document);  // Bug修复：补上 updateById，否则状态不会写入DB
+        documentMapper.updateById(document);
 
         // 6. 通过独立的 Bean 调用异步方法（走 Spring 代理，@Async 生效）
         translationTaskExecutor.doTranslate(
-                request.getDocumentId(), task.getId(), allChunks,
+                request.getDocumentId(), taskId, allChunks,
                 request.getSourceLang(), request.getTargetLang());
 
         // 7. 立即返回初始进度响应（不等待翻译完成）
@@ -140,7 +145,7 @@ public class TranslationServiceImpl implements TranslationService {
         response.setTotalChunks(allChunks.size());
         response.setCompletedChunks(0);
         response.setProgressPercent(0);
-        response.setTaskId(task.getId());
+        response.setTaskId(taskId);
 
         return response;
     }

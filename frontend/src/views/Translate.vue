@@ -7,6 +7,31 @@
         <span>AI 文档翻译平台</span>
       </div>
       <div class="header-right">
+        <template v-if="!isLoggedIn">
+          <el-button type="primary" @click="$router.push('/login')">登录</el-button>
+        </template>
+        <template v-else>
+          <el-dropdown @command="handleUserCommand">
+            <span class="user-dropdown-trigger">
+              <el-avatar :size="32" :src="userInfo?.avatarUrl" />
+              <span class="user-name">{{ userInfo?.username }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  个人主页
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <el-divider direction="vertical" />
         <el-upload
           :auto-upload="false"
           :show-file-list="false"
@@ -241,9 +266,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+
+const router = useRouter()
+const route = useRoute()
 import { ElMessage, ElLoading } from 'element-plus'
-import { UploadFilled, VideoPlay, Download, Edit, Check, Close } from '@element-plus/icons-vue'
+import { UploadFilled, VideoPlay, Download, Edit, Check, Close, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+import request from '../api/request'
 import { uploadDocument, getDocumentDetail } from '../api/document'
 import { startTranslation, getProgress, exportFile, stopTranslation } from '../api/translation'
 import { updateChunkTranslation, updateChunkSource } from '../api/edit'
@@ -266,6 +296,54 @@ const editText = ref('')
 
 let progressTimer = null
 let editCancelled = false
+
+// ==================== 认证状态 ====================
+const isLoggedIn = ref(false)
+const userInfo = ref(null)
+
+onMounted(() => {
+  if (localStorage.getItem('accessToken')) {
+    isLoggedIn.value = true
+    fetchUserInfo()
+  }
+  // 从历史记录跳转过来时，自动加载文档
+  const docId = route.query.documentId
+  if (docId) {
+    documentId.value = Number(docId)
+    loadDocumentDetail(Number(docId))
+  }
+})
+
+async function fetchUserInfo() {
+  try {
+    const res = await request.get('/auth/me')
+    userInfo.value = res.data
+  } catch (e) {
+    // token 失效，清空登录状态
+    handleLogout()
+  }
+}
+
+function handleUserCommand(command) {
+  if (command === 'profile') {
+    router.push('/profile')
+  } else if (command === 'logout') {
+    handleLogout()
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  isLoggedIn.value = false
+  userInfo.value = null
+  documentId.value = null
+  fileName.value = ''
+  treeData.value = []
+  chunks.value = []
+  selectedNode.value = null
+}
+
 
 // ==================== 计算属性 ====================
 const totalChunks = computed(() => chunks.value.length)
@@ -592,6 +670,28 @@ onBeforeUnmount(() => stopPolling())
   display: flex;
   gap: 10px;
   align-items: center;
+}
+.user-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background .2s;
+}
+.user-dropdown-trigger:hover {
+  background: #f3f4f6;
+}
+.user-name {
+  font-size: 14px;
+  color: var(--color-text);
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
 }
 
 /* ================= Main ================= */

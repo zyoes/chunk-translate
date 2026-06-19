@@ -42,9 +42,10 @@ public class AuthServiceImpl implements AuthService {
                 .eq(User::getUsername, request.getUsername())) != null) {
             throw new BusinessException(ResultCode.USERNAME_ALREADY_EXISTS);
         }
-        // 校验邮箱唯一性
+        // 校验邮箱唯一性（仅查本地注册用户，GitHub 用户允许同邮箱独立账号）
         if (userMapper.selectOne(new LambdaQueryWrapper<User>()
-                .eq(User::getEmail, request.getEmail())) != null) {
+                .eq(User::getEmail, request.getEmail())
+                .eq(User::getProvider, ProviderType.LOCAL.getValue())) != null) {
             throw new BusinessException(ResultCode.EMAIL_ALREADY_EXISTS);
         }
 

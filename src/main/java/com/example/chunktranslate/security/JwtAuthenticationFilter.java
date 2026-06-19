@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -65,6 +66,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } finally {
             UserContext.clear();
         }
+    }
+
+    private static final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return pathMatcher.match("/oauth2/**", path)
+            || pathMatcher.match("/login/**", path)
+            || pathMatcher.match("/swagger-ui/**", path)
+            || pathMatcher.match("/v3/api-docs/**", path);
     }
 
     private String extractToken(HttpServletRequest request) {

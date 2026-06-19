@@ -45,7 +45,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         );
 
         if (user == null) {
-            // 首次 GitHub 登录，创建本地用户
+            // 首次 GitHub 登录，创建独立账号
             user = new User();
             user.setUsername(registrationId + "_" + username);
             user.setEmail(email);
@@ -58,7 +58,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             userMapper.insert(user);
             log.info("GitHub 新用户注册: username={}, providerId={}", user.getUsername(), providerId);
         } else {
-            // 已有用户，更新头像和登录时间
+            // 已有 GitHub 用户，更新头像和登录时间
             user.setAvatarUrl(avatarUrl);
             user.setLastLoginAt(LocalDateTime.now());
             userMapper.updateById(user);

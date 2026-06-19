@@ -26,7 +26,7 @@ CREATE TABLE `sys_user`
 
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`),
-    UNIQUE KEY `uk_email` (`email`),
+    KEY `idx_email` (`email`),
     KEY `idx_provider_provider_id` (`provider`, `provider_id`),
     KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统用户表';

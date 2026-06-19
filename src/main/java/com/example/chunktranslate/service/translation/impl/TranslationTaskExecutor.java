@@ -146,15 +146,17 @@ public class TranslationTaskExecutor {
 
                 // 当所有 chunk 都处理完毕时，更新文档最终状态
                 if (successCount.get() + failCount.get() == total) {
-                    // 更新翻译任务进度
-                    TranslationTask task = translationTaskMapper.selectById(taskId);
-                    if (task != null) {
-                        task.setCompletedChunks(successCount.get());
-                        task.setStatus(failCount.get() == 0
-                                ? TaskStatus.COMPLETED.getCode()
-                                : TaskStatus.FAILED.getCode());
-                        task.setCompletedAt(LocalDateTime.now());
-                        translationTaskMapper.updateById(task);
+                    // 更新翻译任务进度（仅登录用户）
+                    if (taskId != null) {
+                        TranslationTask task = translationTaskMapper.selectById(taskId);
+                        if (task != null) {
+                            task.setCompletedChunks(successCount.get());
+                            task.setStatus(failCount.get() == 0
+                                    ? TaskStatus.COMPLETED.getCode()
+                                    : TaskStatus.FAILED.getCode());
+                            task.setCompletedAt(LocalDateTime.now());
+                            translationTaskMapper.updateById(task);
+                        }
                     }
                     updateDocumentStatus(documentId, failCount.get() == 0);
                     cancelledTasks.remove(documentId);
