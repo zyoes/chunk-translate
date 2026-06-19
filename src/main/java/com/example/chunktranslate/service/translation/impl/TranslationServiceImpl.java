@@ -19,6 +19,7 @@ import com.example.chunktranslate.util.ParserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -61,6 +62,7 @@ public class TranslationServiceImpl implements TranslationService {
      * </p>
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public TranslationProgressResponse startTranslation(TranslationStartRequest request) {
         // 1. 校验文档是否存在
         Document document = documentMapper.selectById(request.getDocumentId());
@@ -261,6 +263,7 @@ public class TranslationServiceImpl implements TranslationService {
      * </p>
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void stopTranslation(Long documentId) {
         // 1. 通知执行器取消
         translationTaskExecutor.cancelTranslation(documentId);
