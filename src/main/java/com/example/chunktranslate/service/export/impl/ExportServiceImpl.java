@@ -24,6 +24,7 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -59,6 +60,8 @@ public class ExportServiceImpl implements ExportService {
 
     private final DocumentMapper documentMapper;
     private final DocumentChunkMapper documentChunkMapper;
+
+    private static final String FONT_RESOURCE = "fonts/NotoSansCJKsc-Regular.otf";
 
     /**
      * 导出为 TXT 纯文本
@@ -194,12 +197,25 @@ public class ExportServiceImpl implements ExportService {
 
             pdfDoc.open();
 
-            // 创建中文字体：使用 Windows 系统自带的宋体（simsun.ttc）
+            // 从 classpath 加载中文字体（避免硬编码系统路径）
+            byte[] fontBytes;
+            try (InputStream fontStream = getClass().getClassLoader()
+                    .getResourceAsStream(FONT_RESOURCE)) {
+                if (fontStream == null) {
+                    throw new BusinessException(ResultCode.EXPORT_FAIL.getCode(),
+                            "中文字体文件未找到: " + FONT_RESOURCE);
+                }
+                fontBytes = fontStream.readAllBytes();
+            }
             BaseFont baseFont = BaseFont.createFont(
-                    "C:/Windows/Fonts/simsun.ttc,0",  // .ttc 是字体集合，,0 表示第一个字体
-                    BaseFont.IDENTITY_H,              // 水平书写，支持中文的编码方式
-                    BaseFont.NOT_EMBEDDED             // 不嵌入字体到 PDF（文件更小）
+                    "NotoSansCJKsc-Regular.otf",
+                    BaseFont.IDENTITY_H,
+                    BaseFont.EMBEDDED,    // 嵌入式，PDF 可在任何设备正常显示
+                    false,
+                    fontBytes,
+                    null
             );
+
             Font titleFont = new Font(baseFont, 18, Font.BOLD);
             Font headingFont = new Font(baseFont, 14, Font.BOLD);
             Font contentFont = new Font(baseFont, 12);
