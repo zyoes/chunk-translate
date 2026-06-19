@@ -5,6 +5,8 @@ import com.example.chunktranslate.dto.auth.AuthResponse;
 import com.example.chunktranslate.dto.auth.LoginRequest;
 import com.example.chunktranslate.dto.auth.RefreshTokenRequest;
 import com.example.chunktranslate.dto.auth.RegisterRequest;
+import com.example.chunktranslate.dto.auth.ChangePasswordRequest;
+import com.example.chunktranslate.dto.auth.ResetPasswordRequest;
 import com.example.chunktranslate.dto.auth.UpdateProfileRequest;
 import com.example.chunktranslate.dto.auth.UserInfoResponse;
 import com.example.chunktranslate.security.UserContext;
@@ -67,5 +69,35 @@ public class AuthController {
     public Result<UserInfoResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
         Long userId = UserContext.getUserId();
         return Result.success(authService.updateAvatar(userId, file));
+    }
+
+    @Operation(summary = "发送注册验证码")
+    @PostMapping("/send-register-code")
+    public Result<Void> sendRegisterCode(@RequestParam("email") String email) {
+        authService.sendRegisterCode(email);
+        return Result.success();
+    }
+
+    @Operation(summary = "发送邮箱验证码（需登录）")
+    @PostMapping("/send-code")
+    public Result<Void> sendCode() {
+        Long userId = UserContext.getUserId();
+        authService.sendVerificationCode(userId);
+        return Result.success();
+    }
+
+    @Operation(summary = "修改密码")
+    @PostMapping("/change-password")
+    public Result<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        Long userId = UserContext.getUserId();
+        authService.changePassword(userId, request);
+        return Result.success();
+    }
+
+    @Operation(summary = "忘记密码-重置密码")
+    @PostMapping("/reset-password")
+    public Result<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return Result.success();
     }
 }

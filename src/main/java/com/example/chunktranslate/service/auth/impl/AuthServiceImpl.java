@@ -9,6 +9,8 @@ import com.example.chunktranslate.dto.auth.AuthResponse;
 import com.example.chunktranslate.dto.auth.LoginRequest;
 import com.example.chunktranslate.dto.auth.RefreshTokenRequest;
 import com.example.chunktranslate.dto.auth.RegisterRequest;
+import com.example.chunktranslate.dto.auth.ChangePasswordRequest;
+import com.example.chunktranslate.dto.auth.ResetPasswordRequest;
 import com.example.chunktranslate.dto.auth.UpdateProfileRequest;
 import com.example.chunktranslate.dto.auth.UserInfoResponse;
 import com.example.chunktranslate.entity.RefreshToken;
@@ -18,6 +20,7 @@ import com.example.chunktranslate.mapper.UserMapper;
 import com.example.chunktranslate.security.JwtTokenProvider;
 import com.example.chunktranslate.security.UserContext;
 import com.example.chunktranslate.service.auth.AuthService;
+import com.example.chunktranslate.service.auth.EmailService;
 import com.example.chunktranslate.util.FileStorageUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.data.redis.core.RedisTemplate;
 
 @Slf4j
 @Service
@@ -38,6 +45,11 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final FileStorageUtil fileStorageUtil;
+    private final EmailService emailService;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private static final String CODE_PREFIX_USER = "verify:user:";
+    private static final String CODE_PREFIX_EMAIL = "verify:email:";
 
     @Override
     @Transactional
@@ -53,6 +65,17 @@ public class AuthServiceImpl implements AuthService {
                 .eq(User::getProvider, ProviderType.LOCAL.getValue())) != null) {
             throw new BusinessException(ResultCode.EMAIL_ALREADY_EXISTS);
         }
+
+        // 校验注册验证码
+        String key = CODE_PREFIX_EMAIL + request.getEmail();
+        String storedCode = (String) redisTemplate.opsForValue().get(key);
+        if (storedCode == null) {
+            throw new BusinessException(ResultCode.TOKEN_EXPIRED.getCode(), "验证码已过期");
+        }
+        if (!storedCode.equals(request.getCode())) {
+            throw new BusinessException(ResultCode.INVALID_TOKEN.getCode(), "验证码错误");
+        }
+        redisTemplate.delete(key);
 
         User user = new User();
         user.setUsername(request.getUsername());
@@ -181,6 +204,79 @@ public class AuthServiceImpl implements AuthService {
         userMapper.updateById(user);
         log.info("用户头像更新: userId={}, avatar={}", userId, path);
         return getCurrentUser(userId);
+    }
+
+    @Override
+    public void sendRegisterCode(String email) {
+        String code = String.format("%06d", new Random().nextInt(999999));
+        redisTemplate.opsForValue().set(CODE_PREFIX_EMAIL + email, code, 5, TimeUnit.MINUTES);
+        emailService.sendVerificationCode(email, code);
+    }
+
+    @Override
+    public void sendVerificationCode(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        // 生成 6 位数字验证码，5 分钟有效
+        String code = String.format("%06d", new Random().nextInt(999999));
+        redisTemplate.opsForValue().set(CODE_PREFIX_USER + userId, code, 5, TimeUnit.MINUTES);
+        emailService.sendVerificationCode(user.getEmail(), code);
+    }
+
+    @Override
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null || !currentUserId.equals(userId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN);
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(ResultCode.INVALID_CREDENTIALS);
+        }
+        // 校验验证码
+        String key = CODE_PREFIX_USER + userId;
+        String storedCode = (String) redisTemplate.opsForValue().get(key);
+        if (storedCode == null) {
+            throw new BusinessException(ResultCode.TOKEN_EXPIRED.getCode(), "验证码已过期");
+        }
+        if (!storedCode.equals(request.getCode())) {
+            throw new BusinessException(ResultCode.INVALID_TOKEN.getCode(), "验证码错误");
+        }
+        redisTemplate.delete(key);
+        // 更新密码
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userMapper.updateById(user);
+        log.info("用户密码修改成功: userId={}", userId);
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        // 校验验证码
+        String key = CODE_PREFIX_EMAIL + request.getEmail();
+        String storedCode = (String) redisTemplate.opsForValue().get(key);
+        if (storedCode == null) {
+            throw new BusinessException(ResultCode.TOKEN_EXPIRED.getCode(), "验证码已过期");
+        }
+        if (!storedCode.equals(request.getCode())) {
+            throw new BusinessException(ResultCode.INVALID_TOKEN.getCode(), "验证码错误");
+        }
+        // 查找本地用户
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getEmail, request.getEmail())
+                .eq(User::getProvider, ProviderType.LOCAL.getValue()));
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        // 重置密码
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userMapper.updateById(user);
+        redisTemplate.delete(key);
+        log.info("用户密码重置成功: email={}", request.getEmail());
     }
 
     private AuthResponse generateAuthResponse(User user) {

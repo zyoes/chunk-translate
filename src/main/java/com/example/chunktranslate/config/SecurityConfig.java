@@ -40,7 +40,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
-                                "/api/auth/refresh"
+                                "/api/auth/refresh",
+                                "/api/auth/send-register-code",
+                                "/api/auth/reset-password"
                         ).permitAll()
                         .requestMatchers("/oauth2/**", "/login/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
@@ -59,6 +61,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/me",
                                 "/api/auth/profile",
                                 "/api/auth/avatar",
+                                "/api/auth/send-code",
+                                "/api/auth/change-password",
                                 "/api/translation/history",
                                 "/api/translation/history/**"
                         ).authenticated()

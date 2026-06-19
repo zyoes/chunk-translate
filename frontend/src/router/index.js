@@ -16,6 +16,12 @@ const router = createRouter({
       meta: { title: '登录 - AI 文档翻译' }
     },
     {
+      path: '/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('../views/ForgotPassword.vue'),
+      meta: { title: '重置密码 - AI 文档翻译' }
+    },
+    {
       path: '/profile',
       name: 'Profile',
       component: () => import('../views/ProfileView.vue'),

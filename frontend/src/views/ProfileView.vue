@@ -39,9 +39,12 @@
           >
             {{ userInfo?.role === 'admin' ? '管理员' : '普通用户' }}
           </el-tag>
-          <div style="margin-top: 8px;">
+          <div class="profile-actions">
             <el-button type="primary" size="small" @click="openEditDialog">
               编辑资料
+            </el-button>
+            <el-button size="small" @click="openPasswordDialog">
+              修改密码
             </el-button>
           </div>
         </div>
@@ -82,6 +85,46 @@
       </main>
     </div>
 
+    <!-- 修改密码弹窗 -->
+    <el-dialog v-model="showPwdDialog" :title="pwdStep === 1 ? '验证身份' : '设置新密码'" width="420px" destroy-on-close>
+      <!-- Step 1: 邮箱验证 -->
+      <template v-if="pwdStep === 1">
+        <p class="pwd-hint">验证码将发送到您的注册邮箱</p>
+        <el-form ref="codeFormRef" :model="pwdForm" label-position="top" @submit.prevent>
+          <el-form-item label="验证码" prop="code">
+            <div class="code-row">
+              <el-input v-model="pwdForm.code" placeholder="6位验证码" maxlength="6" />
+              <el-button :disabled="codeCountdown > 0" :loading="sendingCode" @click="handleSendCode">
+                {{ codeCountdown > 0 ? codeCountdown + 's' : '发送验证码' }}
+              </el-button>
+            </div>
+          </el-form-item>
+        </el-form>
+      </template>
+      <!-- Step 2: 修改密码 -->
+      <template v-else>
+        <p class="pwd-hint">验证通过，请设置新密码</p>
+        <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
+          <el-form-item label="原密码" prop="oldPassword">
+            <el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="输入当前密码" />
+          </el-form-item>
+          <el-form-item label="新密码" prop="newPassword">
+            <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="6-100个字符" />
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <template v-if="pwdStep === 1">
+          <el-button @click="showPwdDialog = false">取消</el-button>
+          <el-button type="primary" :loading="verifyingCode" @click="handleVerifyCode">下一步</el-button>
+        </template>
+        <template v-else>
+          <el-button @click="pwdStep = 1">上一步</el-button>
+          <el-button type="primary" :loading="changingPwd" @click="handleChangePassword">确认修改</el-button>
+        </template>
+      </template>
+    </el-dialog>
+
     <!-- 编辑资料弹窗 -->
     <el-dialog v-model="showEditDialog" title="编辑个人资料" width="420px" destroy-on-close>
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-position="top">
@@ -120,7 +163,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Camera } from '@element-plus/icons-vue'
-import { getCurrentUser, updateProfile, uploadAvatar } from '../api/auth'
+import { getCurrentUser, updateProfile, uploadAvatar, sendVerificationCode, changePassword } from '../api/auth'
 import request from '../api/request'
 
 const router = useRouter()
@@ -152,6 +195,81 @@ async function handleAvatarChange(file) {
     console.error('头像上传失败', e)
   } finally {
     uploading.value = false
+  }
+}
+
+// ===== 修改密码 =====
+const showPwdDialog = ref(false)
+const pwdStep = ref(1)
+const changingPwd = ref(false)
+const verifyingCode = ref(false)
+const sendingCode = ref(false)
+const codeCountdown = ref(0)
+const pwdFormRef = ref(null)
+const pwdForm = reactive({ oldPassword: '', newPassword: '', code: '' })
+const verifiedCode = ref('') // 已验证通过的验证码
+const pwdRules = {
+  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 100, message: '密码长度6-100', trigger: 'blur' }
+  ]
+}
+
+function openPasswordDialog() {
+  pwdStep.value = 1
+  pwdForm.oldPassword = ''
+  pwdForm.newPassword = ''
+  pwdForm.code = ''
+  verifiedCode.value = ''
+  codeCountdown.value = 0
+  showPwdDialog.value = true
+}
+
+async function handleSendCode() {
+  if (!pwdForm.code) {
+    // 发验证码不用校验，直接发
+  }
+  sendingCode.value = true
+  try {
+    await sendVerificationCode()
+    ElMessage.success('验证码已发送到您的邮箱')
+    codeCountdown.value = 60
+    const timer = setInterval(() => {
+      codeCountdown.value--
+      if (codeCountdown.value <= 0) clearInterval(timer)
+    }, 1000)
+  } catch (e) {
+    console.error('发送验证码失败', e)
+  } finally {
+    sendingCode.value = false
+  }
+}
+
+function handleVerifyCode() {
+  if (!pwdForm.code) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
+  pwdStep.value = 2
+}
+
+async function handleChangePassword() {
+  const valid = await pwdFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  changingPwd.value = true
+  try {
+    await changePassword({
+      oldPassword: pwdForm.oldPassword,
+      newPassword: pwdForm.newPassword,
+      code: pwdForm.code
+    })
+    showPwdDialog.value = false
+    ElMessage.success('密码修改成功')
+  } catch (e) {
+    console.error('修改密码失败', e)
+  } finally {
+    changingPwd.value = false
   }
 }
 
@@ -305,6 +423,29 @@ function formatTime(time) {
   justify-content: center;
   opacity: 0;
   transition: opacity .2s;
+}
+.profile-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.code-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.code-row :deep(.el-input) {
+  flex: 1;
+}
+.code-row :deep(.el-button) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.pwd-hint {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 16px;
 }
 .sidebar-avatar-box:hover .sidebar-avatar-overlay {
   opacity: 1;

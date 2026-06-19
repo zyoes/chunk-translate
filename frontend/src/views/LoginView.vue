@@ -53,6 +53,11 @@
           />
         </el-form-item>
 
+        <!-- 登录特有：忘记密码 -->
+        <p v-if="mode === 'login'" class="forgot-link">
+          <router-link to="/forgot-password">忘记密码？</router-link>
+        </p>
+
         <!-- 登录特有：用户名/邮箱 -->
         <el-form-item v-if="mode === 'login'" label="用户名 / 邮箱" prop="username">
           <el-input
@@ -73,6 +78,24 @@
             :prefix-icon="Lock"
             size="large"
           />
+        </el-form-item>
+
+        <!-- 注册特有：验证码 -->
+        <el-form-item v-if="mode === 'register'" label="邮箱验证码" prop="code">
+          <div class="code-row">
+            <el-input
+              v-model="form.code"
+              placeholder="6位验证码"
+              maxlength="6"
+            />
+            <el-button
+              :disabled="regCodeCountdown > 0"
+              :loading="regSendingCode"
+              @click="handleSendRegCode"
+            >
+              {{ regCodeCountdown > 0 ? regCodeCountdown + 's' : '发送验证码' }}
+            </el-button>
+          </div>
         </el-form-item>
 
         <el-button
@@ -107,7 +130,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Message } from '@element-plus/icons-vue'
-import { login, register } from '../api/auth'
+import { login, register, sendRegisterCode } from '../api/auth'
 
 const router = useRouter()
 
@@ -116,7 +139,9 @@ const loading = ref(false)
 const formRef = ref(null)
 
 // ===== 表单 =====
-const form = reactive({ username: '', email: '', password: '' })
+const form = reactive({ username: '', email: '', password: '', code: '' })
+const regCodeCountdown = ref(0)
+const regSendingCode = ref(false)
 
 const rules = computed(() => {
   if (mode.value === 'register') {
@@ -132,7 +157,8 @@ const rules = computed(() => {
       password: [
         { required: true, message: '请输入密码', trigger: 'blur' },
         { min: 6, max: 100, message: '密码长度6-100', trigger: 'blur' }
-      ]
+      ],
+      code: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
     }
   }
   return {
@@ -160,7 +186,33 @@ async function handleSubmit() {
 
 watch(mode, () => {
   formRef.value?.clearValidate()
+  form.code = ''
+  regCodeCountdown.value = 0
 })
+
+async function handleSendRegCode() {
+  // 先校验邮箱格式
+  const valid = await formRef.value?.validateField('email').catch(() => false)
+  if (!valid) return
+  if (!form.email) {
+    ElMessage.warning('请先输入邮箱')
+    return
+  }
+  regSendingCode.value = true
+  try {
+    await sendRegisterCode(form.email)
+    ElMessage.success('验证码已发送到您的邮箱')
+    regCodeCountdown.value = 60
+    const timer = setInterval(() => {
+      regCodeCountdown.value--
+      if (regCodeCountdown.value <= 0) clearInterval(timer)
+    }, 1000)
+  } catch (e) {
+    console.error('发送验证码失败', e)
+  } finally {
+    regSendingCode.value = false
+  }
+}
 
 function handleGithubLogin() {
   window.location.href = 'http://localhost:8080/oauth2/authorization/github'
@@ -248,6 +300,15 @@ function saveAuth(data) {
   margin-bottom: 18px;
 }
 
+.forgot-link {
+  text-align: right;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.forgot-link a {
+  color: #1677ff;
+  text-decoration: none;
+}
 .submit-btn {
   width: 100%;
   height: 46px;
@@ -312,5 +373,16 @@ function saveAuth(data) {
 .github-icon {
   width: 20px;
   height: 20px;
+}
+.code-row {
+  display: flex;
+  gap: 8px;
+}
+.code-row :deep(.el-input) {
+  flex: 1;
+}
+.code-row :deep(.el-button) {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 </style>

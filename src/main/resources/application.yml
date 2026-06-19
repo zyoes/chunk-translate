@@ -42,6 +42,19 @@ spring:
       max-file-size: 100MB
       max-request-size: 120MB
 
+  # ==================== 邮件配置 ====================
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: xxx@example.com
+    password: xxx
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   # ==================== Spring Security OAuth2 Client ====================
   security:
     oauth2:

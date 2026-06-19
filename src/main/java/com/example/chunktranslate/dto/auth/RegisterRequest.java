@@ -24,4 +24,8 @@ public class RegisterRequest {
     @Size(min = 6, max = 100, message = "密码长度6-100")
     @Schema(description = "密码", example = "123456")
     private String password;
+
+    @NotBlank(message = "验证码不能为空")
+    @Schema(description = "邮箱验证码")
+    private String code;
 }

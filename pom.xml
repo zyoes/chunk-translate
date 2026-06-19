@@ -169,6 +169,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- ==================== 邮件 ==================== -->
+
+        <!-- Spring Boot Mail -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- ==================== 安全认证 ==================== -->
 
         <!-- Spring Security + OAuth2 Client -->

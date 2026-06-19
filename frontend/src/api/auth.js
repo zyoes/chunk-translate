@@ -28,3 +28,18 @@ export function uploadAvatar(file) {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
+
+// 发送注册验证码
+export function sendRegisterCode(email) {
+  return request.post('/auth/send-register-code', null, { params: { email } })
+}
+
+// 发送邮箱验证码（需登录）
+export function sendVerificationCode() {
+  return request.post('/auth/send-code')
+}
+
+// 修改密码
+export function changePassword(data) {
+  return request.post('/auth/change-password', data)
+}
