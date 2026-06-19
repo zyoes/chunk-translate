@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
  *   <li>GET /api/export/pdf/{documentId} — 导出为 PDF 文档</li>
  * </ul>
  */
+@Slf4j
 @Tag(name = "导出管理", description = "译文导出（TXT/Markdown/DOCX/PDF）")
 @RestController
 @RequestMapping("/api/export")
@@ -39,7 +41,14 @@ public class ExportController {
     public void exportTxt(
             @Parameter(description = "文档ID") @PathVariable Long documentId,
             HttpServletResponse response) {
-        exportService.exportTxt(documentId, response);
+        try {
+            exportService.exportTxt(documentId, response);
+        } catch (Exception e) {
+            if (!response.isCommitted()) {
+                throw e;
+            }
+            log.error("导出TXT失败(响应已提交): documentId={}", documentId, e);
+        }
     }
 
     /**
@@ -50,7 +59,14 @@ public class ExportController {
     public void exportMarkdown(
             @Parameter(description = "文档ID") @PathVariable Long documentId,
             HttpServletResponse response) {
-        exportService.exportMarkdown(documentId, response);
+        try {
+            exportService.exportMarkdown(documentId, response);
+        } catch (Exception e) {
+            if (!response.isCommitted()) {
+                throw e;
+            }
+            log.error("导出Markdown失败(响应已提交): documentId={}", documentId, e);
+        }
     }
 
     /**
@@ -61,7 +77,14 @@ public class ExportController {
     public void exportDocx(
             @Parameter(description = "文档ID") @PathVariable Long documentId,
             HttpServletResponse response) {
-        exportService.exportDocx(documentId, response);
+        try {
+            exportService.exportDocx(documentId, response);
+        } catch (Exception e) {
+            if (!response.isCommitted()) {
+                throw e;
+            }
+            log.error("导出DOCX失败(响应已提交): documentId={}", documentId, e);
+        }
     }
 
     /**
@@ -72,6 +95,13 @@ public class ExportController {
     public void exportPdf(
             @Parameter(description = "文档ID") @PathVariable Long documentId,
             HttpServletResponse response) {
-        exportService.exportPdf(documentId, response);
+        try {
+            exportService.exportPdf(documentId, response);
+        } catch (Exception e) {
+            if (!response.isCommitted()) {
+                throw e;
+            }
+            log.error("导出PDF失败(响应已提交): documentId={}", documentId, e);
+        }
     }
 }
