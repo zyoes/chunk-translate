@@ -10,9 +10,9 @@ spring:
 
   # ==================== 数据库配置 ====================
   datasource:
-    url: jdbc:mysql://localhost:3306/chunk_translate?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: xxx
+    url: ${DB_URL:jdbc:mysql://localhost:3306/chunk_translate?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:xxx}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   # ==================== Flyway 配置 ====================
@@ -29,10 +29,10 @@ spring:
   # ==================== Redis 配置 ====================
   data:
     redis:
-      host: localhost
-      port: 6379
-      password:
-      database: 0
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
       timeout: 5000ms
 
   # ==================== 文件上传配置 ====================
@@ -44,10 +44,10 @@ spring:
 
   # ==================== 邮件配置 ====================
   mail:
-    host: smtp.qq.com
-    port: 587
-    username: xxx@example.com
-    password: xxx
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:xxx@example.com}
+    password: ${MAIL_PASSWORD:xxx}
     properties:
       mail:
         smtp:
@@ -116,27 +116,27 @@ springdoc:
 # ==================== 阿里云机器翻译配置 ====================
 aliyun:
   translation:
-    access-key-id: your-access-key-id
-    access-key-secret: your-access-key-secret
-    endpoint: mt.cn-hangzhou.aliyuncs.com
+    access-key-id: ${ALIYUN_ACCESS_KEY_ID:your-access-key-id}
+    access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET:your-access-key-secret}
+    endpoint: ${ALIYUN_ENDPOINT:mt.cn-hangzhou.aliyuncs.com}
     scene: general
     format-type: text
 
 # ==================== DeepSeek AI 润色配置 ====================
 deepseek:
   api:
-    url: https://api.deepseek.com/v1/chat/completions
-    key: your-deepseek-api-key
-    model: deepseek-chat
+    url: ${DEEPSEEK_API_URL:https://api.deepseek.com/v1/chat/completions}
+    key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
+    model: ${DEEPSEEK_MODEL:deepseek-chat}
     max-tokens: 16384
     temperature: 0.3
 
 # ==================== JWT 配置 ====================
 jwt:
-  secret: "chunk-translate-jwt-secret-key-2026-min-32-chars"
+  secret: ${JWT_SECRET:chunk-translate-jwt-secret-key-2026-minimum-32-chars}
   access-token-expiration: 900000
   refresh-token-expiration: 604800000
 
 # ==================== 前端地址 ====================
 app:
-  frontend-url: "http://localhost:5173"
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
