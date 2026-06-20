@@ -5,6 +5,14 @@
       <div class="logo" @click="$router.push('/')">
         <el-icon :size="24"><Document /></el-icon>
         <span>AI 文档翻译平台</span>
+        <el-button
+          v-if="userInfo?.role === 'admin'"
+          type="warning"
+          plain
+          @click.stop="$router.push('/admin')"
+        >
+          后台管理
+        </el-button>
       </div>
       <div class="header-right">
         <el-button @click="$router.push('/')">返回翻译</el-button>

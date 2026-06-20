@@ -25,4 +25,8 @@ public class Document extends BaseEntity {
 
     /** 文档处理状态，对应 {@link com.example.chunktranslate.common.enums.DocumentStatus} */
     private Integer status;
+
+    /** 上传者用户名（仅后台管理列表使用，非数据库字段） */
+    @TableField(exist = false)
+    private String uploaderName;
 }

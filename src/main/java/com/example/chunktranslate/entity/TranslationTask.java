@@ -1,5 +1,6 @@
 package com.example.chunktranslate.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.example.chunktranslate.common.entity.BaseEntity;
 import lombok.Data;
@@ -43,4 +44,12 @@ public class TranslationTask extends BaseEntity {
 
     /** 翻译完成时间 */
     private LocalDateTime completedAt;
+
+    /** 文档文件名（仅后台管理列表使用，非数据库字段） */
+    @TableField(exist = false)
+    private String documentName;
+
+    /** 上传者用户名（仅后台管理列表使用，非数据库字段） */
+    @TableField(exist = false)
+    private String uploaderName;
 }

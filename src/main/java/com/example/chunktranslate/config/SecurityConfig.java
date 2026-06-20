@@ -77,6 +77,8 @@ public class SecurityConfig {
                                 "/api/translation/history",
                                 "/api/translation/history/**"
                         ).authenticated()
+                        // 管理员接口
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )
                 .oauth2Login(oauth2 -> oauth2

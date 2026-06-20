@@ -5,6 +5,14 @@
       <div class="logo">
         <el-icon :size="24"><Document /></el-icon>
         <span>AI 文档翻译平台</span>
+        <el-button
+          v-if="userInfo?.role === 'admin'"
+          type="warning"
+          plain
+          @click="$router.push('/admin')"
+        >
+          后台管理
+        </el-button>
       </div>
       <div class="header-right">
         <template v-if="!isLoggedIn">

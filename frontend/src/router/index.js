@@ -15,6 +15,13 @@ const router = createRouter({
       component: () => import('../views/Translate.vue'),
       meta: { title: 'AI 文档翻译' }
     },
+    // ==================== 管理后台 ====================
+    {
+      path: '/admin',
+      name: 'Admin',
+      component: () => import('../views/AdminView.vue'),
+      meta: { title: '后台管理 - AI 文档翻译' }
+    },
     {
       path: '/login',
       name: 'Login',
