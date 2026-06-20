@@ -3,7 +3,7 @@ package com.example.chunktranslate.service.document.impl;
 
 import com.example.chunktranslate.common.enums.ChunkStatus;
 import com.example.chunktranslate.common.enums.DocumentStatus;
-import com.example.chunktranslate.dto.DocumentTreeNode;
+import com.example.chunktranslate.dto.document.DocumentTreeNode;
 import com.example.chunktranslate.entity.Document;
 import com.example.chunktranslate.entity.DocumentChunk;
 import com.example.chunktranslate.mapper.DocumentChunkMapper;

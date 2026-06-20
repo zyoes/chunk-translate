@@ -1,5 +1,6 @@
-package com.example.chunktranslate.dto;
+package com.example.chunktranslate.dto.translation;
 
+import com.example.chunktranslate.dto.document.DocumentDetailResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 

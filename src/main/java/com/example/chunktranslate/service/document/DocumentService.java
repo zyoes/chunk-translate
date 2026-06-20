@@ -1,7 +1,7 @@
 package com.example.chunktranslate.service.document;
 
-import com.example.chunktranslate.dto.DocumentDetailResponse;
-import com.example.chunktranslate.dto.DocumentUploadResponse;
+import com.example.chunktranslate.dto.document.DocumentDetailResponse;
+import com.example.chunktranslate.dto.document.DocumentUploadResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 /**

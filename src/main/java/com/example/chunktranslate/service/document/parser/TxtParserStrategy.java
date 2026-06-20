@@ -2,7 +2,7 @@ package com.example.chunktranslate.service.document.parser;
 
 import com.example.chunktranslate.common.exception.BusinessException;
 import com.example.chunktranslate.common.result.ResultCode;
-import com.example.chunktranslate.dto.DocumentTreeNode;
+import com.example.chunktranslate.dto.document.DocumentTreeNode;
 import com.example.chunktranslate.util.ParserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

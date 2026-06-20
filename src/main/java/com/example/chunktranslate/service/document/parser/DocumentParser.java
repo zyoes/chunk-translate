@@ -1,6 +1,6 @@
 package com.example.chunktranslate.service.document.parser;
 
-import com.example.chunktranslate.dto.DocumentTreeNode;
+import com.example.chunktranslate.dto.document.DocumentTreeNode;
 
 import java.nio.file.Path;
 import java.util.List;

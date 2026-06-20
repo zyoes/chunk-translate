@@ -1,9 +1,9 @@
 package com.example.chunktranslate.service.translation;
 
-import com.example.chunktranslate.dto.TranslationHistoryResponse;
-import com.example.chunktranslate.dto.TranslationProgressResponse;
-import com.example.chunktranslate.dto.TranslationStartRequest;
-import com.example.chunktranslate.dto.TranslationTaskDetailResponse;
+import com.example.chunktranslate.dto.translation.TranslationHistoryResponse;
+import com.example.chunktranslate.dto.translation.TranslationProgressResponse;
+import com.example.chunktranslate.dto.translation.TranslationStartRequest;
+import com.example.chunktranslate.dto.translation.TranslationTaskDetailResponse;
 
 import java.util.List;
 

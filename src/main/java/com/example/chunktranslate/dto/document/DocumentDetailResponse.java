@@ -1,4 +1,4 @@
-package com.example.chunktranslate.dto;
+package com.example.chunktranslate.dto.document;
 
 import lombok.Data;
 

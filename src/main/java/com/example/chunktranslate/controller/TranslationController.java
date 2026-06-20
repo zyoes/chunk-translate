@@ -1,10 +1,10 @@
 package com.example.chunktranslate.controller;
 
 import com.example.chunktranslate.common.result.Result;
-import com.example.chunktranslate.dto.TranslationHistoryResponse;
-import com.example.chunktranslate.dto.TranslationProgressResponse;
-import com.example.chunktranslate.dto.TranslationStartRequest;
-import com.example.chunktranslate.dto.TranslationTaskDetailResponse;
+import com.example.chunktranslate.dto.translation.TranslationHistoryResponse;
+import com.example.chunktranslate.dto.translation.TranslationProgressResponse;
+import com.example.chunktranslate.dto.translation.TranslationStartRequest;
+import com.example.chunktranslate.dto.translation.TranslationTaskDetailResponse;
 import com.example.chunktranslate.service.translation.TranslationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

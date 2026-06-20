@@ -1,13 +1,11 @@
 package com.example.chunktranslate.controller;
 
 import com.example.chunktranslate.common.result.Result;
-import com.example.chunktranslate.dto.DocumentDetailResponse;
-import com.example.chunktranslate.dto.DocumentUploadResponse;
+import com.example.chunktranslate.dto.document.DocumentDetailResponse;
+import com.example.chunktranslate.dto.document.DocumentUploadResponse;
 import com.example.chunktranslate.service.document.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
