@@ -10,6 +10,11 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
+/**
+ * OpenAPI / Swagger 文档配置。
+ * <p>访问 http://localhost:8080/swagger-ui.html 查看 API 文档。
+ * 按业务模块（文档管理/翻译管理/导出管理）组织 Tag。</p>
+ */
 @Configuration
 public class OpenApiConfig {
 

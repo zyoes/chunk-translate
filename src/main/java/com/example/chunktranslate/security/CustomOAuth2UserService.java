@@ -17,6 +17,12 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+/**
+ * GitHub OAuth2 用户加载服务。
+ * <p>在 GitHub 授权回调时被调用，获取用户信息后：
+ * 首次登录创建账号，已存在账号更新头像和登录时间。
+ * 返回 {@link CustomOAuth2User} 包装后的用户对象。</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

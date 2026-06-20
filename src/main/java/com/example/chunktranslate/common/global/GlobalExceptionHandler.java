@@ -12,6 +12,10 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+/**
+ * 全局异常处理器，将各类异常统一转换为 {@link com.example.chunktranslate.common.result.Result Result} 响应。
+ * <p>只拦截 {@code com.example.chunktranslate.controller} 包下的 Controller。</p>
+ */
 @Slf4j
 @RestControllerAdvice(basePackages = "com.example.chunktranslate.controller")
 public class GlobalExceptionHandler {

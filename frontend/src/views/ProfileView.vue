@@ -180,10 +180,17 @@ const editRules = {}
 
 const uploading = ref(false)
 
+/** 侧边栏头像变更回调，委托给 {@link handleAvatarChange} */
 async function handleSidebarAvatarChange(file) {
   await handleAvatarChange(file)
 }
 
+/**
+ * 上传头像文件，成功后更新本地用户信息。
+ * @param {Object} file - Element Plus Upload 组件传入的文件对象
+ * @param {File} file.raw - 原始 File 对象
+ * @returns {Promise<void>}
+ */
 async function handleAvatarChange(file) {
   uploading.value = true
   try {
@@ -216,6 +223,7 @@ const pwdRules = {
   ]
 }
 
+/** 打开修改密码对话框，重置所有表单状态 */
 function openPasswordDialog() {
   pwdStep.value = 1
   pwdForm.oldPassword = ''
@@ -226,6 +234,10 @@ function openPasswordDialog() {
   showPwdDialog.value = true
 }
 
+/**
+ * 发送修改密码用的邮箱验证码，启动 60s 倒计时。
+ * @returns {Promise<void>}
+ */
 async function handleSendCode() {
   if (!pwdForm.code) {
     // 发验证码不用校验，直接发
@@ -246,6 +258,7 @@ async function handleSendCode() {
   }
 }
 
+/** 验证码输入后进入第二步（设置新密码） */
 function handleVerifyCode() {
   if (!pwdForm.code) {
     ElMessage.warning('请输入验证码')
@@ -254,6 +267,10 @@ function handleVerifyCode() {
   pwdStep.value = 2
 }
 
+/**
+ * 提交修改密码请求，成功后关闭对话框。
+ * @returns {Promise<void>}
+ */
 async function handleChangePassword() {
   const valid = await pwdFormRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -273,12 +290,17 @@ async function handleChangePassword() {
   }
 }
 
+/** 打开编辑资料对话框，预填当前用户信息 */
 function openEditDialog() {
   editForm.username = userInfo.value?.username || ''
   editForm.avatarUrl = userInfo.value?.avatarUrl || ''
   showEditDialog.value = true
 }
 
+/**
+ * 保存个人资料更新。
+ * @returns {Promise<void>}
+ */
 async function handleSaveProfile() {
   const valid = await editFormRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -300,6 +322,7 @@ onMounted(async () => {
   fetchHistory()
 })
 
+/** 获取当前登录用户信息，401 时跳转登录页 */
 async function fetchUserInfo() {
   try {
     const res = await getCurrentUser()
@@ -309,6 +332,7 @@ async function fetchUserInfo() {
   }
 }
 
+/** 获取当前用户的翻译历史记录 */
 async function fetchHistory() {
   try {
     const res = await request.get('/translation/history')
@@ -320,24 +344,45 @@ async function fetchHistory() {
   }
 }
 
+/** 退出登录：清除本地 token 并跳转到登录页 */
 function handleLogout() {
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')
   router.replace('/login')
 }
 
+/**
+ * 点击历史记录项跳转到对应文档的翻译页面。
+ * @param {Object} item - 翻译任务记录
+ * @param {number} item.documentId - 文档 ID
+ */
 function goToTask(item) {
   router.push({ path: '/', query: { documentId: item.documentId } })
 }
 
+/**
+ * 将任务状态码映射为 Element Plus Tag 类型。
+ * @param {number} status
+ * @returns {string} Element Plus Tag type（warning/success/danger/info）
+ */
 function getStatusType(status) {
   return { 0: 'warning', 1: 'success', 2: 'danger' }[status] || 'info'
 }
 
+/**
+ * 将任务状态码映射为中文标签。
+ * @param {number} status
+ * @returns {string}
+ */
 function getStatusLabel(status) {
   return { 0: '进行中', 1: '已完成', 2: '失败' }[status] || '未知'
 }
 
+/**
+ * 格式化时间为中文短日期格式。
+ * @param {string|Date} time
+ * @returns {string}
+ */
 function formatTime(time) {
   if (!time) return ''
   return new Date(time).toLocaleDateString('zh-CN', {

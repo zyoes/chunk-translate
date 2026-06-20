@@ -8,6 +8,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
 
+/**
+ * Spring MVC 全局配置。
+ * <ul>
+ *   <li>CORS：允许所有来源访问 /api/**，支持跨域携带 Cookie</li>
+ *   <li>静态资源：将上传目录映射为 /uploads/** URL 路径</li>
+ * </ul>
+ */
 @Configuration
 @RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {

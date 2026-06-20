@@ -7,6 +7,11 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+/**
+ * Redis 配置。
+ * <p>定义 RedisTemplate，Key 使用 String 序列化，Value 使用 Fastjson2 序列化，
+ * 确保存入 Redis 的对象可读且兼容泛型反序列化。</p>
+ */
 @Configuration
 public class RedisConfig {
 

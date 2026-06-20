@@ -5,6 +5,9 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * 翻译历史列表项响应 DTO，对应 translation_task 表的记录。
+ */
 @Data
 @Schema(description = "翻译历史列表项")
 public class TranslationHistoryResponse {

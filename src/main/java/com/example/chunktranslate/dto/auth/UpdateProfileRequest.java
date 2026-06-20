@@ -4,6 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * 更新个人资料请求 DTO，支持修改用户名和头像。
+ */
 @Data
 @Schema(description = "更新个人资料请求")
 public class UpdateProfileRequest {

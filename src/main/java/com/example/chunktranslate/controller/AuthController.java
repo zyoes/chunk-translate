@@ -24,6 +24,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 用户认证控制器。
+ * <p>提供注册、登录、令牌刷新、个人信息、邮箱验证、密码修改/重置等 REST 接口。</p>
+ */
 @Tag(name = "用户认证", description = "注册、登录、令牌刷新、当前用户信息")
 @RestController
 @RequestMapping("/api/auth")

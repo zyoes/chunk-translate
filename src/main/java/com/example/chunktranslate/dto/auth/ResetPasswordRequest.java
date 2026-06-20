@@ -6,6 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * 重置密码请求 DTO，通过邮箱验证码重置密码（无需旧密码）。
+ */
 @Data
 @Schema(description = "重置密码请求")
 public class ResetPasswordRequest {

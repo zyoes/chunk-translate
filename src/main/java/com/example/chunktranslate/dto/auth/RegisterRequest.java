@@ -6,6 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * 用户注册请求 DTO，需提供邮箱验证码完成注册。
+ */
 @Data
 @Schema(description = "注册请求")
 public class RegisterRequest {

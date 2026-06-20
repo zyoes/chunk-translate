@@ -10,6 +10,11 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+/**
+ * 自定义用户详情服务。
+ * <p>实现 Spring Security 的 {@link UserDetailsService}，支持按用户名/邮箱加载本地用户，
+ * 以及按用户 ID 加载（供 JWT 过滤器使用）。</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {

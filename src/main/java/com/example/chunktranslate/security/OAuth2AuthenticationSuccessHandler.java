@@ -15,6 +15,11 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.LocalDateTime;
 
+/**
+ * OAuth2 登录成功处理器。
+ * <p>GitHub 认证成功后执行：签发 JWT access token + refresh token，将 refresh token 存入数据库，
+ * 最后 302 重定向到前端 OAuth 回调页，token 通过 URL query 参数传递。</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

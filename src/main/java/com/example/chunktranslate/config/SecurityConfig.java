@@ -17,6 +17,17 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.Customizer;
 
+/**
+ * Spring Security 安全配置。
+ * <p>核心策略：</p>
+ * <ul>
+ *   <li>无状态 JWT 认证（禁用 CSRF、不使用 Session）</li>
+ *   <li>公开接口（注册/登录/文档查看/翻译/导出/Swagger）无需登录</li>
+ *   <li>用户信息接口（/api/auth/me、/api/auth/profile 等）需要认证</li>
+ *   <li>GitHub OAuth2 登录支持</li>
+ *   <li>JWT 过滤器在 UsernamePasswordAuthenticationFilter 之前执行</li>
+ * </ul>
+ */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

@@ -15,6 +15,11 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * 文件存储工具类。
+ * <p>将上传文件按日期分目录存储在本地，文件名为 UUID 保留原始扩展名。
+ * 根目录从 {@link com.example.chunktranslate.config.StorageConfig} 读取。</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

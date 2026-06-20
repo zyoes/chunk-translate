@@ -1,8 +1,14 @@
+/**
+ * Vue Router 路由配置。
+ * 使用 HTML5 History 模式，所有路由懒加载。
+ * meta.title 用于设置浏览器标签页标题。
+ */
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    // ==================== 核心功能页 ====================
     {
       path: '/',
       name: 'Translate',

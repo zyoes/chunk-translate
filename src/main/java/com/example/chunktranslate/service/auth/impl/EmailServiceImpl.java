@@ -9,6 +9,11 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+/**
+ * 邮件发送服务实现。
+ * <p>通过 {@link org.springframework.mail.javamail.JavaMailSender} 发送 HTML 格式邮件，
+ * 发件人地址自动使用 application.yml 中配置的 spring.mail.username。</p>
+ */
 @Slf4j
 @Service
 public class EmailServiceImpl implements EmailService {

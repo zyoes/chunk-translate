@@ -15,6 +15,11 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 阿里云机器翻译客户端。
+ * <p>基于阿里云 alimt SDK（TranslateGeneral API），在 {@link #init()} 中初始化客户端连接。
+ * 翻译配置从 {@link com.example.chunktranslate.config.AiConfig} 注入。</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

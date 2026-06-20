@@ -7,6 +7,11 @@ import org.springframework.context.annotation.Configuration;
 
 import java.io.File;
 
+/**
+ * 本地文件存储配置。
+ * <p>读取 storage.local.base-path 作为上传文件的存储根目录，
+ * 在 {@link #init()} 中将相对路径转为绝对路径并确保目录存在。</p>
+ */
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "storage.local")

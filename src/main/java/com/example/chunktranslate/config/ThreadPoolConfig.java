@@ -9,6 +9,12 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
+/**
+ * 翻译线程池配置。
+ * <p>为翻译任务创建独立的线程池，核心参数从 application.yml 中读取：
+ * core-size / max-size / queue-capacity / keep-alive-seconds。
+ * 拒绝策略为 CallerRunsPolicy，防止任务丢失。</p>
+ */
 @EnableAsync
 @Configuration
 public class ThreadPoolConfig {

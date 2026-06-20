@@ -2,6 +2,15 @@ package com.example.chunktranslate.common.result;
 
 import lombok.Getter;
 
+/**
+ * 统一响应状态码枚举。
+ * <p>错误码分三段：</p>
+ * <ul>
+ *   <li>HTTP 对齐码（200/400/401/403/404/500）：复用标准 HTTP 语义</li>
+ *   <li>业务错误码 1xxx：文件上传、解析、翻译、导出相关</li>
+ *   <li>认证错误码 2xxx：用户注册、登录、令牌相关</li>
+ * </ul>
+ */
 @Getter
 public enum ResultCode {
 
@@ -37,7 +46,9 @@ public enum ResultCode {
     REFRESH_TOKEN_REVOKED(2008, "刷新令牌已被撤销"),
     REFRESH_TOKEN_EXPIRED(2009, "刷新令牌已过期");
 
+    /** HTTP 风格的状态码 */
     private final int code;
+    /** 人类可读的描述信息 */
     private final String message;
 
     ResultCode(int code, String message) {

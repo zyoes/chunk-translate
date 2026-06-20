@@ -14,6 +14,13 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * DeepSeek AI 润色客户端。
+ * <p>通过 OkHttp 调用 DeepSeek API（兼容 OpenAI Chat Completions 格式），
+ * 对阿里云机翻译文进行润色以提升自然度。
+ * 配置从 {@link com.example.chunktranslate.config.LlmConfig} 注入。
+ * 连接超时 30s，读取超时 120s。</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

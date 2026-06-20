@@ -2,6 +2,11 @@ package com.example.chunktranslate.common.enums;
 
 import lombok.Getter;
 
+/**
+ * 翻译结果状态枚举。
+ * <p>对应 translation_result 表中单条翻译记录的状态，表示某个分块在特定翻译阶段
+ * （如阿里云机翻或 DeepSeek 润色）的处理结果。</p>
+ */
 @Getter
 public enum TranslationStatus {
     PENDING(0, "待处理"),

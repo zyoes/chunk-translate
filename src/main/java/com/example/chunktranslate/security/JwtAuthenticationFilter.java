@@ -17,6 +17,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * JWT 认证过滤器，在每次请求时从 Authorization 头解析 JWT 并恢复用户身份。
+ * <p>实现为 {@link OncePerRequestFilter}，确保每个请求只执行一次。
+ * OAuth2 回调路径和 Swagger 静态资源路径跳过过滤。</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

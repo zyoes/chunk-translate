@@ -9,6 +9,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * 自定义 Spring Security UserDetails 实现，包装数据库中的 {@link com.example.chunktranslate.entity.User} 实体。
+ * <p>权限从 user.role 字段映射为 ROLE_ 前缀的 GrantedAuthority。
+ * isEnabled() 通过 user.status 判断账户是否激活。</p>
+ */
 @Getter
 public class CustomUserDetails implements UserDetails {
 

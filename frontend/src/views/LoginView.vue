@@ -167,6 +167,10 @@ const rules = computed(() => {
   }
 })
 
+/**
+ * 提交登录或注册表单，成功后保存 token 并跳转到主页。
+ * @returns {Promise<void>}
+ */
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -190,8 +194,11 @@ watch(mode, () => {
   regCodeCountdown.value = 0
 })
 
+/**
+ * 发送注册验证码到邮箱，启动 60s 倒计时。
+ * @returns {Promise<void>}
+ */
 async function handleSendRegCode() {
-  // 先校验邮箱格式
   const valid = await formRef.value?.validateField('email').catch(() => false)
   if (!valid) return
   if (!form.email) {
@@ -214,10 +221,17 @@ async function handleSendRegCode() {
   }
 }
 
+/** 跳转到后端 GitHub OAuth2 授权页面 */
 function handleGithubLogin() {
   window.location.href = 'http://localhost:8080/oauth2/authorization/github'
 }
 
+/**
+ * 将认证响应中的 token 存入 localStorage 并跳转到主页。
+ * @param {Object} data - 认证响应数据
+ * @param {string} data.accessToken - JWT 访问令牌
+ * @param {string} [data.refreshToken] - 刷新令牌
+ */
 function saveAuth(data) {
   localStorage.setItem('accessToken', data.accessToken)
   if (data.refreshToken) {

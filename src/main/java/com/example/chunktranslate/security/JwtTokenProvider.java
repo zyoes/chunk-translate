@@ -12,6 +12,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
+/**
+ * JWT 令牌工具类，负责 access token 的签发、验证、解析。
+ * <p>refresh token 使用 UUID 生成并存储在 refresh_token 表中，不嵌入 JWT。
+ * 签名密钥从 application.yml 的 jwt.secret 读取，使用 HMAC-SHA 算法。</p>
+ */
 @Component
 public class JwtTokenProvider {
 

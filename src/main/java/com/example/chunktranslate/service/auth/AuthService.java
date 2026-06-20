@@ -10,6 +10,10 @@ import com.example.chunktranslate.dto.auth.UpdateProfileRequest;
 import com.example.chunktranslate.dto.auth.UserInfoResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 认证授权服务接口。
+ * <p>涵盖用户注册、登录、令牌刷新、个人信息管理、邮箱验证、密码修改/重置等全部认证相关功能。</p>
+ */
 public interface AuthService {
 
     AuthResponse register(RegisterRequest request);

@@ -3,6 +3,9 @@ package com.example.chunktranslate.dto.auth;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * 认证响应 DTO，包含 JWT access token、refresh token 和用户信息。
+ */
 @Data
 @Schema(description = "认证响应")
 public class AuthResponse {

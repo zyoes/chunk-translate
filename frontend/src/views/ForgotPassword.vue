@@ -84,6 +84,10 @@ const pwdRules = {
   ]
 }
 
+/**
+ * 发送邮箱验证码，启动 60s 倒计时。
+ * @returns {Promise<void>}
+ */
 async function handleSendCode() {
   const valid = await emailFormRef.value?.validateField('email').catch(() => false)
   if (!valid) return
@@ -103,12 +107,20 @@ async function handleSendCode() {
   }
 }
 
+/**
+ * 邮箱验证通过后进入第二步（设置新密码）。
+ * @returns {Promise<void>}
+ */
 async function handleNext() {
   const valid = await emailFormRef.value?.validate().catch(() => false)
   if (!valid) return
   step.value = 2
 }
 
+/**
+ * 提交新密码完成重置，成功后跳转到登录页。
+ * @returns {Promise<void>}
+ */
 async function handleReset() {
   const valid = await pwdFormRef.value?.validate().catch(() => false)
   if (!valid) return

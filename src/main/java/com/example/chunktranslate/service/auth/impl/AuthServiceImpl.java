@@ -35,6 +35,18 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.redis.core.RedisTemplate;
 
+/**
+ * 认证授权服务实现。
+ * <p>核心功能：</p>
+ * <ul>
+ *   <li>邮箱注册（需验证码） + BCrypt 密码加密</li>
+ *   <li>邮箱/用户名登录，签发 JWT access token + refresh token</li>
+ *   <li>refresh token 轮换（旧的吊销，新的签发）</li>
+ *   <li>验证码发送与校验（Redis 存储，5 分钟有效）</li>
+ *   <li>密码修改与重置</li>
+ *   <li>个人资料编辑与头像上传</li>
+ * </ul>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

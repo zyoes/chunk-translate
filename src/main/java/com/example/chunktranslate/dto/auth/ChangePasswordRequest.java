@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * 修改密码请求 DTO，需验证旧密码和邮箱验证码。
+ */
 @Data
 @Schema(description = "修改密码请求")
 public class ChangePasswordRequest {

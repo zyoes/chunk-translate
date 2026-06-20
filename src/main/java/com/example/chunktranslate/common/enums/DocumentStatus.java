@@ -2,6 +2,11 @@ package com.example.chunktranslate.common.enums;
 
 import lombok.Getter;
 
+/**
+ * 文档处理状态枚举。
+ * <p>文档从上传到解析完成的状态流转：已上传→解析中→已解析/解析失败→翻译中，
+ * 对应数据库 document 表的 status 字段。</p>
+ */
 @Getter
 public enum DocumentStatus {
     UPLOADED(0, "已上传"),

@@ -4,6 +4,11 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * 阿里云机器翻译 API 配置。
+ * <p>从 application.yml 中 aliyun.translation 前缀读取配置项，
+ * 用于初始化 {@link com.example.chunktranslate.service.translation.ALimtTranslationClient}。</p>
+ */
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "aliyun.translation")
